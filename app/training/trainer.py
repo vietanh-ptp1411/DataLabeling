@@ -54,6 +54,8 @@ class TrainWorker(QThread):
             model = YOLO(self.model_name)
 
             def on_epoch_end(trainer):
+                self.log_line.emit(
+                    f">>> Epoch {trainer.epoch + 1}/{trainer.epochs} xong")
                 if self._stop:
                     trainer.stop = True
 

@@ -1,5 +1,13 @@
+import multiprocessing
 import os
 import sys
+
+# Windowed (no-console) builds have sys.stdout/stderr = None; libraries that
+# write progress bars (ultralytics/tqdm) crash on .write(). Give them a sink.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="ignore")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="ignore")
 
 from PySide6.QtWidgets import QApplication
 
@@ -33,4 +41,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # required in frozen builds: torch DataLoader workers spawn new processes
+    # that would otherwise re-launch the whole GUI
+    multiprocessing.freeze_support()
     main()
