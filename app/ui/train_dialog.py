@@ -1,9 +1,9 @@
-from PySide6.QtWidgets import (QComboBox, QDialog, QFileDialog, QFormLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QPlainTextEdit, QPushButton, QSpinBox,
-                               QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
+                               QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+                               QMessageBox, QPlainTextEdit, QPushButton,
+                               QSpinBox, QVBoxLayout)
 
-from app.training.trainer import TrainWorker
+from app.training.trainer import ConvertWorker, TrainWorker
 
 
 class TrainDialog(QDialog):
@@ -12,6 +12,7 @@ class TrainDialog(QDialog):
         self.setWindowTitle("Train YOLO")
         self.resize(760, 560)
         self.worker = None
+        self.converter = None
 
         form = QFormLayout()
         form.setHorizontalSpacing(16)
@@ -62,6 +63,10 @@ class TrainDialog(QDialog):
             params.addWidget(widget, stretch=1)
         form.addRow("Tham số:", params)
 
+        self.onnx_check = QCheckBox("Xuất ONNX sau khi train (best.onnx)")
+        self.onnx_check.setChecked(True)
+        form.addRow("", self.onnx_check)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
@@ -75,11 +80,15 @@ class TrainDialog(QDialog):
         self.stop_btn = QPushButton("Dừng")
         self.stop_btn.setEnabled(False)
         self.stop_btn.setAutoDefault(False)
+        self.convert_btn = QPushButton("Convert .pt → ONNX…")
+        self.convert_btn.setAutoDefault(False)
         self.start_btn.clicked.connect(self._start)
         self.stop_btn.clicked.connect(self._stop)
+        self.convert_btn.clicked.connect(self._convert_pt)
         btn_row.addWidget(self.start_btn)
         btn_row.addWidget(self.stop_btn)
         btn_row.addStretch()
+        btn_row.addWidget(self.convert_btn)
         layout.addLayout(btn_row)
         log_head = QLabel("LOG TRAIN")
         log_head.setObjectName("sectionLabel")
@@ -96,6 +105,31 @@ class TrainDialog(QDialog):
         if p:
             self.data_edit.setText(p)
 
+    # ---------- .pt -> ONNX ----------
+
+    def _convert_pt(self):
+        p, _ = QFileDialog.getOpenFileName(self, "Chọn model .pt", "",
+                                           "PyTorch model (*.pt)")
+        if not p:
+            return
+        self.convert_btn.setEnabled(False)
+        self.log.appendPlainText(f">>> Đang convert sang ONNX: {p}")
+        self.converter = ConvertWorker(p, self.imgsz_spin.value())
+        self.converter.done.connect(self._convert_done)
+        self.converter.failed.connect(self._convert_failed)
+        self.converter.start()
+
+    def _convert_done(self, onnx_path):
+        self.convert_btn.setEnabled(True)
+        self.log.appendPlainText(f">>> ONNX: {onnx_path}")
+        QMessageBox.information(self, "Convert xong",
+                                f"Đã tạo:\n{onnx_path}")
+
+    def _convert_failed(self, msg):
+        self.convert_btn.setEnabled(True)
+        self.log.appendPlainText(f">>> Convert lỗi: {msg}")
+        QMessageBox.critical(self, "Lỗi convert", msg)
+
     def _start(self):
         data = self.data_edit.text().strip()
         if not data:
@@ -108,7 +142,8 @@ class TrainDialog(QDialog):
             self.task_combo.currentText(),
             self.model_combo.currentText().strip(),
             data, self.epochs_spin.value(), self.imgsz_spin.value(),
-            self.batch_spin.value(), self.device_combo.currentText())
+            self.batch_spin.value(), self.device_combo.currentText(),
+            onnx_after=self.onnx_check.isChecked())
         self.worker.log_line.connect(self.log.appendPlainText)
         self.worker.finished_ok.connect(self._done)
         self.worker.failed.connect(self._failed)
@@ -133,6 +168,11 @@ class TrainDialog(QDialog):
         if self.worker and self.worker.isRunning():
             QMessageBox.warning(self, "Đang train",
                                 "Bấm Dừng và đợi train kết thúc trước khi đóng.")
+            event.ignore()
+            return
+        if self.converter and self.converter.isRunning():
+            QMessageBox.warning(self, "Đang convert",
+                                "Đợi convert ONNX xong trước khi đóng.")
             event.ignore()
             return
         super().closeEvent(event)

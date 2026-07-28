@@ -1,7 +1,7 @@
 ; Inno Setup script — build after PyInstaller:
 ;   ISCC.exe installer\DataLabeling.iss
 #define MyAppName "DataLabeling"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "MVA"
 #define MyAppURL "https://github.com/vietanh-ptp1411/DataLabeling"
 #define MyAppExeName "DataLabeling.exe"
