@@ -243,9 +243,5 @@ class MainWindow(QMainWindow):
         win.show()
 
     def open_train(self):
-        try:
-            from app.ui.train_dialog import TrainDialog
-        except ImportError:
-            QMessageBox.information(self, "Chưa có", "Tính năng đang được xây dựng")
-            return
+        from app.ui.train_dialog import TrainDialog
         TrainDialog(self).exec()
