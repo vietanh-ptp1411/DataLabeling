@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
-                               QFormLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QPlainTextEdit, QPushButton,
-                               QSpinBox, QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
+                               QFileDialog, QFormLayout, QHBoxLayout, QLabel,
+                               QLineEdit, QMessageBox, QPlainTextEdit,
+                               QPushButton, QSpinBox, QVBoxLayout)
 
 from app.training.trainer import ConvertWorker, TrainWorker
 
@@ -39,17 +39,20 @@ class TrainDialog(QDialog):
         data_row.addWidget(browse)
         form.addRow("data.yaml:", data_row)
 
-        # hyper-params on one row
+        # hyper-params, two rows
         self.epochs_spin = QSpinBox()
         self.epochs_spin.setRange(1, 10000)
-        self.epochs_spin.setValue(100)
+        self.epochs_spin.setValue(300)
+        self.epochs_spin.setToolTip(
+            "Số epoch tối đa — kết hợp Patience nên cứ để cao")
         self.imgsz_spin = QSpinBox()
         self.imgsz_spin.setRange(32, 4096)
         self.imgsz_spin.setSingleStep(32)
         self.imgsz_spin.setValue(640)
         self.batch_spin = QSpinBox()
         self.batch_spin.setRange(1, 512)
-        self.batch_spin.setValue(16)
+        self.batch_spin.setValue(4)
+        self.batch_spin.setToolTip("Giảm xuống 2 nếu máy yếu / hết RAM")
         self.device_combo = QComboBox()
         self.device_combo.addItems(["auto", "cpu", "0"])
         params = QHBoxLayout()
@@ -63,6 +66,41 @@ class TrainDialog(QDialog):
             params.addWidget(lab)
             params.addWidget(widget, stretch=1)
         form.addRow("Tham số:", params)
+
+        self.patience_spin = QSpinBox()
+        self.patience_spin.setRange(0, 1000)
+        self.patience_spin.setValue(50)
+        self.patience_spin.setToolTip(
+            "Early Stopping: không cải thiện sau N epoch thì tự dừng.\n"
+            "0 = tắt early stopping (train đủ số epoch).")
+        self.optimizer_combo = QComboBox()
+        self.optimizer_combo.addItems(
+            ["auto", "AdamW", "SGD", "Adam", "NAdam", "RAdam", "RMSProp"])
+        self.optimizer_combo.setToolTip(
+            "auto: ultralytics tự chọn optimizer + learning rate\n"
+            "(khi auto thì lr0 bị bỏ qua)")
+        self.lr0_spin = QDoubleSpinBox()
+        self.lr0_spin.setDecimals(4)
+        self.lr0_spin.setRange(0.0001, 0.1)
+        self.lr0_spin.setSingleStep(0.0005)
+        self.lr0_spin.setValue(0.001)
+        self.lr0_spin.setToolTip(
+            "Learning rate ban đầu — chỉ có tác dụng khi Optimizer khác auto")
+        self.pretrained_check = QCheckBox("Pretrained")
+        self.pretrained_check.setChecked(True)
+        self.pretrained_check.setToolTip(
+            "Bắt đầu từ trọng số đã train sẵn (khuyên dùng) thay vì từ đầu")
+        params2 = QHBoxLayout()
+        params2.setSpacing(8)
+        for label, widget in (("Patience", self.patience_spin),
+                              ("Optimizer", self.optimizer_combo),
+                              ("lr0", self.lr0_spin)):
+            lab = QLabel(label)
+            lab.setProperty("dim", True)
+            params2.addWidget(lab)
+            params2.addWidget(widget, stretch=1)
+        params2.addWidget(self.pretrained_check)
+        form.addRow("", params2)
 
         self.onnx_check = QCheckBox("Xuất ONNX sau khi train (best.onnx)")
         self.onnx_check.setChecked(True)
@@ -144,7 +182,11 @@ class TrainDialog(QDialog):
             self.model_combo.currentText().strip(),
             data, self.epochs_spin.value(), self.imgsz_spin.value(),
             self.batch_spin.value(), self.device_combo.currentText(),
-            onnx_after=self.onnx_check.isChecked())
+            onnx_after=self.onnx_check.isChecked(),
+            patience=self.patience_spin.value(),
+            optimizer=self.optimizer_combo.currentText(),
+            lr0=self.lr0_spin.value(),
+            pretrained=self.pretrained_check.isChecked())
         self.worker.log_line.connect(self.log.appendPlainText)
         self.worker.finished_ok.connect(self._done)
         self.worker.failed.connect(self._failed)

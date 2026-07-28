@@ -87,7 +87,8 @@ class TrainWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, task, model, data_yaml, epochs, imgsz, batch, device,
-                 onnx_after=False):
+                 onnx_after=False, patience=100, optimizer="auto", lr0=0.01,
+                 pretrained=True):
         super().__init__()
         self.task = task
         self.model_name = resolve_model_name(model, task)
@@ -97,6 +98,10 @@ class TrainWorker(QThread):
         self.batch = batch
         self.device = device
         self.onnx_after = onnx_after
+        self.patience = patience
+        self.optimizer = optimizer
+        self.lr0 = lr0
+        self.pretrained = pretrained
         self._stop = False
 
     def request_stop(self):
@@ -123,7 +128,9 @@ class TrainWorker(QThread):
                                     "DataLabeling", "runs")
             kwargs = {"data": self.data_yaml, "epochs": self.epochs,
                       "imgsz": self.imgsz, "batch": self.batch,
-                      "project": work_dir}
+                      "project": work_dir, "patience": self.patience,
+                      "optimizer": self.optimizer, "lr0": self.lr0,
+                      "pretrained": self.pretrained}
             if self.device != "auto":
                 kwargs["device"] = self.device
             results = model.train(**kwargs)
