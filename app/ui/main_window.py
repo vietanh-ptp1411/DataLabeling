@@ -20,7 +20,7 @@ DEFAULT_CLASSES = ["Car", "Person", "Motorcycle"]
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DataLabeling Python")
+        self.setWindowTitle("DataLabeling")
         self.resize(1400, 900)
 
         self.folder = None
