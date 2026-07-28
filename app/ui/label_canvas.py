@@ -208,8 +208,82 @@ class LabelCanvas(QGraphicsView):
         r = 10.0 / self._scale()
         return (sx - hx) ** 2 + (sy - hy) ** 2 <= r * r
 
+    # ---------- polygons ----------
+
+    def cancel_pending_polygon(self):
+        self._pending_poly = []
+        self.viewport().update()
+
     def _polygon_click(self, sx, sy):
-        pass  # stub — implemented in Task 9
+        if not self.current_class:
+            self.status_message.emit("Chọn class trước khi vẽ")
+            return
+        close_tol = CLOSE_POLY_PX / self._scale()
+        if len(self._pending_poly) >= 3:
+            fx, fy = self._pending_poly[0]
+            if (sx - fx) ** 2 + (sy - fy) ** 2 <= close_tol ** 2:
+                poly = PolygonAnnotation(self.current_class, list(self._pending_poly))
+                self.polygons.append(poly)
+                self.selected_polygon = poly
+                self.selected_box = None
+                self._pending_poly = []
+                self.annotation_changed.emit()
+                self.selection_changed.emit()
+                self.viewport().update()
+                return
+        # vertex drag on an existing selected polygon takes priority over adding
+        if not self._pending_poly and self.selected_polygon:
+            idx = self._vertex_index_at(self.selected_polygon, sx, sy)
+            if idx is not None:
+                self._drag = {"kind": "drag_vertex",
+                              "poly": self.selected_polygon, "index": idx}
+                return
+        if not self._pending_poly:
+            hit = self._topmost_polygon_at(sx, sy)
+            if hit and hit is not self.selected_polygon:
+                self.selected_polygon = hit
+                self.selected_box = None
+                self.selection_changed.emit()
+                self.viewport().update()
+                return
+        self._pending_poly.append((sx, sy))
+        self.viewport().update()
+
+    def _vertex_index_at(self, poly, sx, sy):
+        t = self._tol()
+        for i, (px, py) in enumerate(poly.points):
+            if (sx - px) ** 2 + (sy - py) ** 2 <= t * t:
+                return i
+        return None
+
+    def _draw_polygon(self, painter, poly, selected):
+        color = self.class_colors.get(poly.class_name, "#FF0000")
+        painter.setPen(self._pen(color, selected))
+        painter.setBrush(Qt.NoBrush)
+        qpoly = QPolygonF([QPointF(x, y) for x, y in poly.points])
+        painter.drawPolygon(qpoly)
+        font = QFont()
+        font.setPointSizeF(max(6.0, 11.0 / self._scale()))
+        painter.setFont(font)
+        top = min(poly.points, key=lambda p: p[1])
+        painter.drawText(QPointF(top[0], top[1] - 4 / self._scale()), poly.class_name)
+        if selected:
+            s = 6.0 / self._scale()
+            painter.setBrush(QColor("#FFFF00"))
+            for px, py in poly.points:
+                painter.drawRect(QRectF(px - s / 2, py - s / 2, s, s))
+
+    def _draw_pending_polygon(self, painter):
+        pen = QPen(QColor("#00FF00"))
+        pen.setWidthF(1.5 / self._scale())
+        painter.setPen(pen)
+        pts = [QPointF(x, y) for x, y in self._pending_poly]
+        for a, b in zip(pts, pts[1:]):
+            painter.drawLine(a, b)
+        painter.setBrush(QColor("#00FF00"))
+        r = 4.0 / self._scale()
+        for p in pts:
+            painter.drawEllipse(p, r, r)
 
     def _topmost_box_at(self, sx, sy):
         for box in reversed(self.boxes):
