@@ -202,7 +202,11 @@ class LabelCanvas(QGraphicsView):
         return d or None
 
     def _hit_rotation_handle(self, box, sx, sy):
-        return False  # stub — replaced with the real hit test in Task 8
+        cx, cy = box.center
+        off = ROT_OFFSET_PX / self._scale()
+        hx, hy = geo.rotate_point(cx, box.y - off, cx, cy, box.angle)
+        r = 10.0 / self._scale()
+        return (sx - hx) ** 2 + (sy - hy) ** 2 <= r * r
 
     def _polygon_click(self, sx, sy):
         pass  # stub — implemented in Task 9
