@@ -9,3 +9,6 @@ build/
 dist/
 *.spec.bak
 models/
+dist_gpu/
+build_gpu/
+.venv-cpu/

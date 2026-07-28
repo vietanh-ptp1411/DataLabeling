@@ -1,10 +1,22 @@
 ; Inno Setup script — build after PyInstaller:
-;   ISCC.exe installer\DataLabeling.iss
+;   CPU: ISCC.exe installer\DataLabeling.iss
+;   GPU: ISCC.exe /DSrcDir=..\dist_gpu\DataLabeling /DEdition=GPU installer\DataLabeling.iss
 #define MyAppName "DataLabeling"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "MVA"
 #define MyAppURL "https://github.com/vietanh-ptp1411/DataLabeling"
 #define MyAppExeName "DataLabeling.exe"
+#ifndef SrcDir
+#define SrcDir "..\dist\DataLabeling"
+#endif
+#ifndef Edition
+#define Edition "CPU"
+#endif
+#if Edition == "GPU"
+#define OutName "DataLabeling-GPU-Setup-" + MyAppVersion
+#else
+#define OutName "DataLabeling-Setup-" + MyAppVersion
+#endif
 
 [Setup]
 AppId={{7E4B7A61-2C0B-4E3D-9B5A-0D8F3C1A2E77}
@@ -17,13 +29,18 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist\installer
-OutputBaseFilename=DataLabeling-Setup-{#MyAppVersion}
+OutputBaseFilename={#OutName}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
+#if Edition == "GPU"
+; GPU edition exceeds GitHub's 2 GB asset limit as one file — span disks
+DiskSpanning=yes
+DiskSliceSize=1900000000
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -32,7 +49,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\dist\DataLabeling\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SrcDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{userprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
