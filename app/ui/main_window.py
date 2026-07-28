@@ -238,11 +238,7 @@ class MainWindow(QMainWindow):
         ExportDialog(self).exec()
 
     def open_auto_label(self):
-        try:
-            from app.ui.auto_label_window import AutoLabelWindow
-        except ImportError:
-            QMessageBox.information(self, "Chưa có", "Tính năng đang được xây dựng")
-            return
+        from app.ui.auto_label_window import AutoLabelWindow
         win = AutoLabelWindow(self)
         win.show()
 
