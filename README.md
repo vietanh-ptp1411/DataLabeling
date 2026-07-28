@@ -16,7 +16,9 @@ Bản Python của app C# WPF ImageLableing.
 3. **Auto Label** (tùy chọn): load model `.pt`/`.onnx`, chạy batch hoặc preview
    duyệt từng ảnh; hỗ trợ tách frame video.
 4. **Export**: chọn task detect / obb / segment, chia train/val, sinh `data.yaml`.
-5. **Train**: chọn model nền + epochs, theo dõi log trực tiếp; kết quả trong `runs/`.
+5. **Train**: chọn model nền + epochs, theo dõi log trực tiếp; model kết quả
+   (`.pt` + `.onnx`) được gom về thư mục `models/` cạnh app với tên
+   `<dataset>_<task>_<ngày-giờ>`, không để lại rác `runs/`.
 
 ## Phím tắt
 

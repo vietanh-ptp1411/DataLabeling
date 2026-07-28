@@ -222,8 +222,9 @@ class AutoLabelWindow(QMainWindow):
     # ---------- pickers ----------
 
     def _pick_model(self):
+        from app.training.trainer import app_models_dir
         path, _ = QFileDialog.getOpenFileName(
-            self, "Chọn model", "", "Model (*.pt *.onnx)")
+            self, "Chọn model", app_models_dir(), "Model (*.pt *.onnx)")
         if not path:
             return
         try:

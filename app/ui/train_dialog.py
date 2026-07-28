@@ -154,11 +154,12 @@ class TrainDialog(QDialog):
         if self.worker:
             self.worker.request_stop()
 
-    def _done(self, save_dir):
+    def _done(self, model_paths):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self.log.appendPlainText(f"\n=== XONG. Kết quả: {save_dir} ===")
-        QMessageBox.information(self, "Train xong", f"Kết quả lưu tại:\n{save_dir}")
+        self.log.appendPlainText(f"\n=== XONG. Model đã lưu ===\n{model_paths}")
+        QMessageBox.information(self, "Train xong",
+                                f"Model đã lưu:\n{model_paths}")
 
     def _failed(self, msg):
         self.start_btn.setEnabled(True)
