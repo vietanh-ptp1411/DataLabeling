@@ -36,7 +36,7 @@ def main():
     if os.path.exists(icon_file):
         qapp.setWindowIcon(QIcon(icon_file))
     win = MainWindow()
-    win.show()
+    win.showMaximized()
     sys.exit(qapp.exec())
 
 

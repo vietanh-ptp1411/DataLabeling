@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
-                               QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPlainTextEdit,
-                               QPushButton, QSpinBox, QVBoxLayout)
+                               QFileDialog, QFormLayout, QGridLayout,
+                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPlainTextEdit, QPushButton, QSpinBox,
+                               QVBoxLayout)
 
 from app.training.trainer import ConvertWorker, TrainWorker
 
@@ -55,18 +56,6 @@ class TrainDialog(QDialog):
         self.batch_spin.setToolTip("Giảm xuống 2 nếu máy yếu / hết RAM")
         self.device_combo = QComboBox()
         self.device_combo.addItems(["auto", "cpu", "0"])
-        params = QHBoxLayout()
-        params.setSpacing(8)
-        for label, widget in (("Epochs", self.epochs_spin),
-                              ("Image size", self.imgsz_spin),
-                              ("Batch", self.batch_spin),
-                              ("Device", self.device_combo)):
-            lab = QLabel(label)
-            lab.setProperty("dim", True)
-            params.addWidget(lab)
-            params.addWidget(widget, stretch=1)
-        form.addRow("Tham số:", params)
-
         self.patience_spin = QSpinBox()
         self.patience_spin.setRange(0, 1000)
         self.patience_spin.setValue(50)
@@ -86,30 +75,54 @@ class TrainDialog(QDialog):
         self.lr0_spin.setValue(0.001)
         self.lr0_spin.setToolTip(
             "Learning rate ban đầu — chỉ có tác dụng khi Optimizer khác auto")
+        # params grid: dim label above each field, 4 equal columns
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(4)
+        cells = [("Epochs", self.epochs_spin, 0, 0),
+                 ("Image size", self.imgsz_spin, 0, 1),
+                 ("Batch", self.batch_spin, 0, 2),
+                 ("Device", self.device_combo, 0, 3),
+                 ("Patience (early stop)", self.patience_spin, 2, 0),
+                 ("Optimizer", self.optimizer_combo, 2, 1),
+                 ("lr0", self.lr0_spin, 2, 2)]
+        for text, widget, row, col in cells:
+            lab = QLabel(text)
+            lab.setProperty("dim", True)
+            grid.addWidget(lab, row, col)
+            grid.addWidget(widget, row + 1, col)
+        for c in range(4):
+            grid.setColumnStretch(c, 1)
+        grid.setRowMinimumHeight(2, 26)   # air between the two param rows
+
         self.pretrained_check = QCheckBox("Pretrained")
         self.pretrained_check.setChecked(True)
         self.pretrained_check.setToolTip(
             "Bắt đầu từ trọng số đã train sẵn (khuyên dùng) thay vì từ đầu")
-        params2 = QHBoxLayout()
-        params2.setSpacing(8)
-        for label, widget in (("Patience", self.patience_spin),
-                              ("Optimizer", self.optimizer_combo),
-                              ("lr0", self.lr0_spin)):
-            lab = QLabel(label)
-            lab.setProperty("dim", True)
-            params2.addWidget(lab)
-            params2.addWidget(widget, stretch=1)
-        params2.addWidget(self.pretrained_check)
-        form.addRow("", params2)
-
-        self.onnx_check = QCheckBox("Xuất ONNX sau khi train (best.onnx)")
+        self.onnx_check = QCheckBox("Xuất ONNX")
         self.onnx_check.setChecked(True)
-        form.addRow("", self.onnx_check)
+        self.onnx_check.setToolTip(
+            "Train xong tự tạo thêm bản .onnx cạnh file .pt")
+        checks = QVBoxLayout()
+        checks.setSpacing(6)
+        checks.addStretch()
+        checks.addWidget(self.pretrained_check)
+        checks.addWidget(self.onnx_check)
+        grid.addLayout(checks, 2, 3, 2, 1)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
+        head_cfg = QLabel("CẤU HÌNH")
+        head_cfg.setObjectName("sectionLabel")
+        layout.addWidget(head_cfg)
         layout.addLayout(form)
+        layout.addSpacing(4)
+        head_par = QLabel("THAM SỐ TRAIN")
+        head_par.setObjectName("sectionLabel")
+        layout.addWidget(head_par)
+        layout.addLayout(grid)
+        layout.addSpacing(4)
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
         self.start_btn = QPushButton("🚀  Bắt đầu train")
