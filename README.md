@@ -42,3 +42,13 @@ Bản Python của app C# WPF ImageLableing.
 ## Test
 
     pytest -v
+
+## Đóng gói bản cài Windows
+
+    pip install pyinstaller
+    python -m PyInstaller DataLabeling.spec --noconfirm
+    ISCC.exe installer\DataLabeling.iss
+
+Kết quả: `dist\installer\DataLabeling-Setup-<version>.exe` — bộ cài per-user
+(không cần admin), icon và shortcut đầy đủ. Bản phát hành tải tại
+[GitHub Releases](https://github.com/vietanh-ptp1411/DataLabeling/releases).

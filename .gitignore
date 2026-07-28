@@ -5,3 +5,6 @@ runs/
 *.pt
 *.onnx
 .venv/
+build/
+dist/
+*.spec.bak
