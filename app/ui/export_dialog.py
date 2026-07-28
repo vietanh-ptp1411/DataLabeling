@@ -1,0 +1,123 @@
+import os
+
+from PySide6.QtCore import QThread, Signal
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
+                               QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+                               QMessageBox, QProgressBar, QPushButton,
+                               QSpinBox, QVBoxLayout)
+
+from app.services.export_service import export_dataset
+
+
+class _ExportWorker(QThread):
+    progress = Signal(int, int)
+    done = Signal(dict)
+    failed = Signal(str)
+
+    def __init__(self, kwargs):
+        super().__init__()
+        self.kwargs = kwargs
+
+    def run(self):
+        try:
+            result = export_dataset(
+                progress_cb=lambda d, t: self.progress.emit(d, t), **self.kwargs)
+            self.done.emit(result)
+        except Exception as e:  # surfaced to a message box
+            self.failed.emit(str(e))
+
+
+class ExportDialog(QDialog):
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self.main = main_window
+        self.worker = None
+        self.setWindowTitle("Export YOLO Dataset")
+        self.resize(460, 300)
+
+        form = QFormLayout()
+        self.task_combo = QComboBox()
+        self.task_combo.addItems(["detect", "obb", "segment"])
+        form.addRow("Task:", self.task_combo)
+
+        out_row = QHBoxLayout()
+        self.out_edit = QLineEdit()
+        browse = QPushButton("...")
+        browse.clicked.connect(self._browse)
+        out_row.addWidget(self.out_edit)
+        out_row.addWidget(browse)
+        form.addRow("Thư mục xuất:", out_row)
+
+        self.train_spin = QSpinBox()
+        self.train_spin.setRange(1, 99)
+        self.train_spin.setValue(80)
+        self.val_label = QLabel("Val: 20%")
+        self.train_spin.valueChanged.connect(
+            lambda v: self.val_label.setText(f"Val: {100 - v}%"))
+        ratio_row = QHBoxLayout()
+        ratio_row.addWidget(self.train_spin)
+        ratio_row.addWidget(self.val_label)
+        form.addRow("Train %:", ratio_row)
+
+        self.copy_check = QCheckBox("Copy ảnh")
+        self.copy_check.setChecked(True)
+        self.yaml_check = QCheckBox("Tạo data.yaml")
+        self.yaml_check.setChecked(True)
+        form.addRow(self.copy_check)
+        form.addRow(self.yaml_check)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        anns = self.main.current_annotations()
+        labeled = sum(1 for a in anns if a.boxes or a.polygons)
+        layout.addWidget(QLabel(f"Ảnh có nhãn: {labeled} / {len(anns)}"))
+        self.progress = QProgressBar()
+        layout.addWidget(self.progress)
+        self.export_btn = QPushButton("Export")
+        self.export_btn.clicked.connect(self._start)
+        layout.addWidget(self.export_btn)
+
+    def _browse(self):
+        d = QFileDialog.getExistingDirectory(self, "Chọn thư mục xuất")
+        if d:
+            self.out_edit.setText(d)
+
+    def _start(self):
+        out_dir = self.out_edit.text().strip()
+        if not out_dir:
+            QMessageBox.warning(self, "Thiếu", "Chọn thư mục xuất.")
+            return
+        if not self.main.classes:
+            QMessageBox.warning(self, "Thiếu", "Chưa có class nào.")
+            return
+        anns = self.main.current_annotations()
+        if not any(a.boxes or a.polygons for a in anns):
+            QMessageBox.warning(self, "Thiếu", "Chưa có ảnh nào được gán nhãn.")
+            return
+        self.export_btn.setEnabled(False)
+        self.worker = _ExportWorker({
+            "annotations": anns,
+            "class_names": [c.name for c in self.main.classes],
+            "out_dir": out_dir,
+            "task": self.task_combo.currentText(),
+            "train_ratio": self.train_spin.value() / 100.0,
+            "copy_images": self.copy_check.isChecked(),
+            "write_yaml": self.yaml_check.isChecked()})
+        self.worker.progress.connect(
+            lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d)))
+        self.worker.done.connect(self._done)
+        self.worker.failed.connect(self._failed)
+        self.worker.start()
+
+    def _done(self, result):
+        self.export_btn.setEnabled(True)
+        if result["yaml"]:
+            self.main.last_export_yaml = result["yaml"]
+        QMessageBox.information(
+            self, "Xong",
+            f"Train: {result['train']} ảnh, Val: {result['val']} ảnh\n"
+            f"data.yaml: {result['yaml'] or '(không tạo)'}")
+
+    def _failed(self, msg):
+        self.export_btn.setEnabled(True)
+        QMessageBox.critical(self, "Lỗi export", msg)
