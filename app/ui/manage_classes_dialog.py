@@ -1,7 +1,9 @@
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QInputDialog, QListWidget,
-                               QMessageBox, QPushButton, QVBoxLayout)
+                               QListWidgetItem, QMessageBox, QPushButton,
+                               QVBoxLayout)
 
 from app.models.label_class import LabelClass
+from app.ui import theme
 
 
 class ManageClassesDialog(QDialog):
@@ -32,7 +34,8 @@ class ManageClassesDialog(QDialog):
     def refresh(self):
         self.listw.clear()
         for c in self.classes:
-            self.listw.addItem(f"{c.name}  ({c.color})")
+            item = QListWidgetItem(theme.dot_icon(c.color, 14), c.name)
+            self.listw.addItem(item)
 
     def add_class(self):
         name, ok = QInputDialog.getText(self, "Thêm class", "Tên class:")

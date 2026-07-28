@@ -3,7 +3,8 @@ image-pixel space, so all hit tests and stored shapes use image pixels."""
 from enum import Enum, auto
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap, QPolygonF
+from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QPainter, QPen,
+                           QPixmap, QPolygonF)
 from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
 
 from app.models.bounding_box import BoundingBox
@@ -15,6 +16,11 @@ HANDLE_PX = 10.0          # hit threshold, screen pixels
 ROT_OFFSET_PX = 25.0      # rotation handle distance above box, screen pixels
 CLOSE_POLY_PX = 12.0
 MIN_SCALE, MAX_SCALE = 0.1, 10.0
+
+CANVAS_BG = "#101318"
+SELECT_COLOR = "#FFD60A"
+DRAFT_COLOR = "#3BE8B0"   # rubber band / pending polygon
+ROTATE_HANDLE_COLOR = "#4F8CFF"
 
 
 class DrawMode(Enum):
@@ -43,7 +49,8 @@ class LabelCanvas(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.NoAnchor)
         self.setResizeAnchor(QGraphicsView.NoAnchor)
         self.setMouseTracking(True)
-        self.setBackgroundBrush(QColor("#2b2b2b"))
+        self.setBackgroundBrush(QColor(CANVAS_BG))
+        self.setFrameShape(QGraphicsView.NoFrame)
 
         self.boxes = []
         self.polygons = []
@@ -54,6 +61,7 @@ class LabelCanvas(QGraphicsView):
         self.labeling_enabled = True
         self.draw_mode = DrawMode.BOX
         self.tool = Tool.POINTER
+        self.empty_hint = "Chưa có ảnh"
 
         self._drag = None                 # dict describing active interaction
         self._pending_poly = []
@@ -258,29 +266,26 @@ class LabelCanvas(QGraphicsView):
 
     def _draw_polygon(self, painter, poly, selected):
         color = self.class_colors.get(poly.class_name, "#FF0000")
+        fill = QColor(color)
+        fill.setAlpha(60 if selected else 34)
         painter.setPen(self._pen(color, selected))
-        painter.setBrush(Qt.NoBrush)
+        painter.setBrush(fill)
         qpoly = QPolygonF([QPointF(x, y) for x, y in poly.points])
         painter.drawPolygon(qpoly)
-        font = QFont()
-        font.setPointSizeF(max(6.0, 11.0 / self._scale()))
-        painter.setFont(font)
         top = min(poly.points, key=lambda p: p[1])
-        painter.drawText(QPointF(top[0], top[1] - 4 / self._scale()), poly.class_name)
+        self._draw_label_badge(painter, top[0], top[1], poly.class_name, color)
         if selected:
-            s = 6.0 / self._scale()
-            painter.setBrush(QColor("#FFFF00"))
             for px, py in poly.points:
-                painter.drawRect(QRectF(px - s / 2, py - s / 2, s, s))
+                self._draw_square_handle(painter, px, py)
 
     def _draw_pending_polygon(self, painter):
-        pen = QPen(QColor("#00FF00"))
+        pen = QPen(QColor(DRAFT_COLOR))
         pen.setWidthF(1.5 / self._scale())
         painter.setPen(pen)
         pts = [QPointF(x, y) for x, y in self._pending_poly]
         for a, b in zip(pts, pts[1:]):
             painter.drawLine(a, b)
-        painter.setBrush(QColor("#00FF00"))
+        painter.setBrush(QColor(DRAFT_COLOR))
         r = 4.0 / self._scale()
         for p in pts:
             painter.drawEllipse(p, r, r)
@@ -443,13 +448,14 @@ class LabelCanvas(QGraphicsView):
     # ---------- rendering ----------
 
     def _pen(self, color, selected, width=2.0):
-        pen = QPen(QColor("#FFFF00") if selected else QColor(color))
-        pen.setWidthF((3.0 if selected else width) / self._scale())
+        pen = QPen(QColor(SELECT_COLOR) if selected else QColor(color))
+        pen.setWidthF((2.5 if selected else width) / self._scale())
         pen.setCosmetic(False)
         return pen
 
     def drawForeground(self, painter, rect):
         if not self._img_w:
+            self._draw_empty_hint(painter)
             return
         for box in self.boxes:
             self._draw_box(painter, box, box is self.selected_box)
@@ -458,14 +464,55 @@ class LabelCanvas(QGraphicsView):
         if self._drag and self._drag["kind"] == "draw":
             x0, y0 = self._drag["start"]
             x1, y1 = self._drag["cur"]
-            pen = QPen(QColor("#00FF00"))
+            pen = QPen(QColor(DRAFT_COLOR))
             pen.setWidthF(1.5 / self._scale())
             pen.setStyle(Qt.DashLine)
             painter.setPen(pen)
+            fill = QColor(DRAFT_COLOR)
+            fill.setAlpha(26)
+            painter.setBrush(fill)
             painter.drawRect(QRectF(min(x0, x1), min(y0, y1),
                                     abs(x1 - x0), abs(y1 - y0)))
         if self._pending_poly:
             self._draw_pending_polygon(painter)
+
+    def _draw_empty_hint(self, painter):
+        painter.save()
+        painter.resetTransform()
+        font = QFont("Segoe UI", 13)
+        painter.setFont(font)
+        painter.setPen(QColor("#4a5364"))
+        rect = self.viewport().rect()
+        painter.drawText(rect, Qt.AlignCenter, self.empty_hint)
+        painter.restore()
+
+    def _draw_label_badge(self, painter, x, y, text, color):
+        """Rounded, filled class-name tag anchored above (x, y)."""
+        s = self._scale()
+        font = QFont("Segoe UI")
+        font.setPointSizeF(max(6.0, 9.5 / s))
+        font.setBold(True)
+        painter.setFont(font)
+        fm = QFontMetricsF(font)
+        pad_x, pad_y = 6.0 / s, 2.0 / s
+        w = fm.horizontalAdvance(text) + 2 * pad_x
+        h = fm.height() + 2 * pad_y
+        rect = QRectF(x, y - h - 3.0 / s, w, h)
+        bg = QColor(color)
+        bg.setAlpha(225)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg)
+        painter.drawRoundedRect(rect, 3.0 / s, 3.0 / s)
+        # dark or light text depending on badge luminance
+        lum = 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue()
+        painter.setPen(QColor("#101318") if lum > 150 else QColor("#ffffff"))
+        painter.drawText(rect, Qt.AlignCenter, text)
+
+    def _draw_square_handle(self, painter, x, y):
+        s = 7.0 / self._scale()
+        painter.setPen(QPen(QColor("#101318"), 1.0 / self._scale()))
+        painter.setBrush(QColor("#ffffff"))
+        painter.drawRect(QRectF(x - s / 2, y - s / 2, s, s))
 
     def _draw_box(self, painter, box, selected):
         color = self.class_colors.get(box.class_name, "#FF0000")
@@ -474,30 +521,28 @@ class LabelCanvas(QGraphicsView):
         painter.translate(cx, cy)
         painter.rotate(box.angle)
         w, h = box.width, box.height
+        fill = QColor(color)
+        fill.setAlpha(60 if selected else 34)
         painter.setPen(self._pen(color, selected))
+        painter.setBrush(fill)
         painter.drawRect(QRectF(-w / 2, -h / 2, w, h))
-        # class badge
-        font = QFont()
-        font.setPointSizeF(max(6.0, 11.0 / self._scale()))
-        painter.setFont(font)
-        painter.drawText(QPointF(-w / 2, -h / 2 - 4 / self._scale()), box.class_name)
+        self._draw_label_badge(painter, -w / 2, -h / 2, box.class_name, color)
         if selected:
             self._draw_handles(painter, w, h)
         painter.restore()
 
     def _draw_handles(self, painter, w, h):
-        s = 6.0 / self._scale()
-        painter.setPen(QPen(QColor("#FFFF00"), 1.0 / self._scale()))
-        painter.setBrush(QColor("#FFFF00"))
         for hx in (-w / 2, 0, w / 2):
             for hy in (-h / 2, 0, h / 2):
                 if hx == 0 and hy == 0:
                     continue
-                painter.drawRect(QRectF(hx - s / 2, hy - s / 2, s, s))
+                self._draw_square_handle(painter, hx, hy)
         # rotation handle: circle above top edge, connected by a line
         off = ROT_OFFSET_PX / self._scale()
+        painter.setPen(QPen(QColor(ROTATE_HANDLE_COLOR), 1.2 / self._scale()))
         painter.drawLine(QPointF(0, -h / 2), QPointF(0, -h / 2 - off))
-        painter.setBrush(QColor("#00BFFF"))
+        painter.setPen(QPen(QColor("#ffffff"), 1.2 / self._scale()))
+        painter.setBrush(QColor(ROTATE_HANDLE_COLOR))
         r = 7.0 / self._scale()
         painter.drawEllipse(QPointF(0, -h / 2 - off), r, r)
 

@@ -2,13 +2,15 @@ import os
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QLabel, QListWidget,
-                               QMainWindow, QMessageBox, QSplitter, QToolBar,
+from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QLabel,
+                               QListWidget, QMainWindow, QMessageBox,
+                               QSizePolicy, QSplitter, QToolBar, QVBoxLayout,
                                QWidget)
 
 from app.models.image_annotation import ImageAnnotation
 from app.models.label_class import LabelClass
 from app.services import file_service as fs
+from app.ui import theme
 from app.ui.label_canvas import DrawMode, LabelCanvas, Tool
 from app.ui.manage_classes_dialog import ManageClassesDialog
 
@@ -29,14 +31,19 @@ class MainWindow(QMainWindow):
         self.last_export_yaml = None
 
         self.canvas = LabelCanvas()
+        self.canvas.empty_hint = ("Chưa có ảnh\n"
+                                  "Bấm “📂 Mở thư mục” để bắt đầu gán nhãn")
         self.image_list = QListWidget()
         self.image_list.currentRowChanged.connect(self._on_list_row)
+        self._labeled_icon = theme.dot_icon("#3be8b0")
+        self._empty_icon = theme.dot_icon("#00000000")
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.addWidget(self.image_list)
+        splitter.addWidget(self._build_side_panel())
         splitter.addWidget(self.canvas)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([220, 1000])
+        splitter.setSizes([230, 1000])
+        splitter.setHandleWidth(1)
         self.setCentralWidget(splitter)
 
         self._build_toolbar()
@@ -45,43 +52,69 @@ class MainWindow(QMainWindow):
         self._sync_class_combo()
 
         self.canvas.annotation_changed.connect(self._flush_canvas_to_store)
+        self.canvas.annotation_changed.connect(self._mark_current_row)
         self.canvas.mouse_moved.connect(
             lambda x, y: self.coord_label.setText(f"x={x:.0f}, y={y:.0f}"))
         self.canvas.status_message.connect(self.statusBar().showMessage)
 
     # ---------- UI construction ----------
 
+    def _build_side_panel(self):
+        panel = QWidget()
+        panel.setObjectName("sidePanel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        head = QHBoxLayout()
+        title = QLabel("DANH SÁCH ẢNH")
+        title.setObjectName("panelHeader")
+        self.list_count = QLabel("0 ảnh")
+        self.list_count.setObjectName("panelCount")
+        head.addWidget(title)
+        head.addStretch()
+        head.addWidget(self.list_count)
+        layout.addLayout(head)
+        layout.addWidget(self.image_list)
+        return panel
+
     def _build_toolbar(self):
         tb = QToolBar("Main")
         tb.setMovable(False)
         self.addToolBar(tb)
-        tb.addAction(QAction("Mở thư mục...", self, triggered=self.open_folder))
-        tb.addAction(QAction("Lưu (Ctrl+S)", self, triggered=self.save_current))
+        tb.addAction(QAction("📂 Mở thư mục", self, triggered=self.open_folder))
+        tb.addAction(QAction("Lưu", self, triggered=self.save_current))
         tb.addAction(QAction("Lưu tất cả", self, triggered=self.save_all))
         tb.addSeparator()
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Box", "Polygon"])
         self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
-        tb.addWidget(QLabel(" Chế độ: "))
+        tb.addWidget(QLabel("Chế độ"))
         tb.addWidget(self.mode_combo)
         self.tool_combo = QComboBox()
         self.tool_combo.addItems(["Pointer (Vẽ ROI)", "Touch (Kéo ảnh)"])
         self.tool_combo.currentIndexChanged.connect(
             lambda i: setattr(self.canvas, "tool", Tool.PAN if i else Tool.POINTER))
-        tb.addWidget(QLabel(" Công cụ: "))
+        tb.addWidget(QLabel("Công cụ"))
         tb.addWidget(self.tool_combo)
         self.class_combo = QComboBox()
         self.class_combo.currentTextChanged.connect(
             lambda name: setattr(self.canvas, "current_class", name))
-        tb.addWidget(QLabel(" Class: "))
+        tb.addWidget(QLabel("Class"))
         tb.addWidget(self.class_combo)
-        tb.addAction(QAction("Quản lý classes...", self, triggered=self.manage_classes))
+        tb.addAction(QAction("Quản lý…", self, triggered=self.manage_classes))
         tb.addSeparator()
-        tb.addAction(QAction("Fit ảnh (0)", self, triggered=self.canvas.fit_image))
-        tb.addSeparator()
-        tb.addAction(QAction("Auto Label...", self, triggered=self.open_auto_label))
-        tb.addAction(QAction("Export...", self, triggered=self.open_export))
-        tb.addAction(QAction("Train...", self, triggered=self.open_train))
+        tb.addAction(QAction("Fit ảnh", self, triggered=self.canvas.fit_image))
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        tb.addWidget(spacer)
+        for text, fn in (("⚡ Auto Label", self.open_auto_label),
+                         ("📦 Export", self.open_export),
+                         ("🚀 Train", self.open_train)):
+            act = QAction(text, self, triggered=fn)
+            tb.addAction(act)
+            btn = tb.widgetForAction(act)
+            if btn:
+                btn.setProperty("accent", True)
 
     def _build_statusbar(self):
         self.coord_label = QLabel("x=–, y=–")
@@ -115,7 +148,8 @@ class MainWindow(QMainWindow):
         current = self.class_combo.currentText()
         self.class_combo.blockSignals(True)
         self.class_combo.clear()
-        self.class_combo.addItems([c.name for c in self.classes])
+        for c in self.classes:
+            self.class_combo.addItem(theme.dot_icon(c.color), c.name)
         if current in [c.name for c in self.classes]:
             self.class_combo.setCurrentText(current)
         self.class_combo.blockSignals(False)
@@ -133,6 +167,8 @@ class MainWindow(QMainWindow):
         dlg.exec()
         self._sync_class_combo()
         self._load_canvas_from_store()
+        self._refresh_list_marks()
+        self._update_counter()
 
     # ---------- folder / navigation ----------
 
@@ -152,6 +188,7 @@ class MainWindow(QMainWindow):
             self.store[p] = ann or ImageAnnotation(p)
         self.image_list.clear()
         self.image_list.addItems([os.path.basename(p) for p in self.image_paths])
+        self._refresh_list_marks()
         if self.image_paths:
             self.image_list.setCurrentRow(0)
         else:
@@ -187,6 +224,25 @@ class MainWindow(QMainWindow):
     def _update_counter(self):
         self.counter_label.setText(
             f"Ảnh {self.index + 1} / {len(self.image_paths)}")
+        labeled = sum(1 for a in self.store.values() if a.boxes or a.polygons)
+        self.list_count.setText(f"{labeled} / {len(self.image_paths)} có nhãn")
+
+    # ---------- list marks (dot = image has labels) ----------
+
+    def _mark_row(self, row):
+        if 0 <= row < self.image_list.count():
+            ann = self.store.get(self.image_paths[row])
+            has = bool(ann and (ann.boxes or ann.polygons))
+            self.image_list.item(row).setIcon(
+                self._labeled_icon if has else self._empty_icon)
+
+    def _mark_current_row(self):
+        self._mark_row(self.index)
+        self._update_counter()
+
+    def _refresh_list_marks(self):
+        for row in range(self.image_list.count()):
+            self._mark_row(row)
 
     # ---------- persistence ----------
 

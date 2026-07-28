@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QComboBox, QDialog, QFileDialog, QFormLayout,
-                               QHBoxLayout, QLineEdit, QMessageBox,
+                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                                QPlainTextEdit, QPushButton, QSpinBox,
                                QVBoxLayout)
 
@@ -14,6 +14,8 @@ class TrainDialog(QDialog):
         self.worker = None
 
         form = QFormLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(10)
         self.task_combo = QComboBox()
         self.task_combo.addItems(["detect", "obb", "segment"])
         form.addRow("Task:", self.task_combo)
@@ -24,45 +26,68 @@ class TrainDialog(QDialog):
         form.addRow("Model nền:", self.model_combo)
 
         data_row = QHBoxLayout()
+        data_row.setSpacing(6)
         self.data_edit = QLineEdit(main_window.last_export_yaml or "")
-        browse = QPushButton("...")
+        self.data_edit.setPlaceholderText("Đường dẫn data.yaml (Export trước)…")
+        browse = QPushButton("📂")
+        browse.setFixedWidth(40)
+        browse.setAutoDefault(False)
         browse.clicked.connect(self._browse_yaml)
         data_row.addWidget(self.data_edit)
         data_row.addWidget(browse)
         form.addRow("data.yaml:", data_row)
 
+        # hyper-params on one row
         self.epochs_spin = QSpinBox()
         self.epochs_spin.setRange(1, 10000)
         self.epochs_spin.setValue(100)
-        form.addRow("Epochs:", self.epochs_spin)
         self.imgsz_spin = QSpinBox()
         self.imgsz_spin.setRange(32, 4096)
         self.imgsz_spin.setSingleStep(32)
         self.imgsz_spin.setValue(640)
-        form.addRow("Image size:", self.imgsz_spin)
         self.batch_spin = QSpinBox()
         self.batch_spin.setRange(1, 512)
         self.batch_spin.setValue(16)
-        form.addRow("Batch:", self.batch_spin)
         self.device_combo = QComboBox()
         self.device_combo.addItems(["auto", "cpu", "0"])
-        form.addRow("Device:", self.device_combo)
+        params = QHBoxLayout()
+        params.setSpacing(8)
+        for label, widget in (("Epochs", self.epochs_spin),
+                              ("Image size", self.imgsz_spin),
+                              ("Batch", self.batch_spin),
+                              ("Device", self.device_combo)):
+            lab = QLabel(label)
+            lab.setProperty("dim", True)
+            params.addWidget(lab)
+            params.addWidget(widget, stretch=1)
+        form.addRow("Tham số:", params)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(12)
         layout.addLayout(form)
         btn_row = QHBoxLayout()
-        self.start_btn = QPushButton("Bắt đầu train")
+        btn_row.setSpacing(8)
+        self.start_btn = QPushButton("🚀  Bắt đầu train")
+        self.start_btn.setProperty("accent", True)
+        self.start_btn.setMinimumHeight(34)
+        self.start_btn.setAutoDefault(False)
         self.stop_btn = QPushButton("Dừng")
         self.stop_btn.setEnabled(False)
+        self.stop_btn.setAutoDefault(False)
         self.start_btn.clicked.connect(self._start)
         self.stop_btn.clicked.connect(self._stop)
         btn_row.addWidget(self.start_btn)
         btn_row.addWidget(self.stop_btn)
         btn_row.addStretch()
         layout.addLayout(btn_row)
+        log_head = QLabel("LOG TRAIN")
+        log_head.setObjectName("sectionLabel")
+        layout.addWidget(log_head)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(5000)
+        self.log.setPlaceholderText("Log train sẽ hiện ở đây…")
         layout.addWidget(self.log, stretch=1)
 
     def _browse_yaml(self):
