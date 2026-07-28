@@ -5,6 +5,9 @@ def test_resolve_model_name_suffixes():
     assert resolve_model_name("yolo11n.pt", "detect") == "yolo11n.pt"
     assert resolve_model_name("yolo11n.pt", "obb") == "yolo11n-obb.pt"
     assert resolve_model_name("yolo11s.pt", "segment") == "yolo11s-seg.pt"
+    assert resolve_model_name("yolo26n.pt", "detect") == "yolo26n.pt"
+    assert resolve_model_name("yolo26n.pt", "obb") == "yolo26n-obb.pt"
+    assert resolve_model_name("yolo26s.pt", "segment") == "yolo26s-seg.pt"
 
 
 def test_resolve_model_name_custom_path_untouched():

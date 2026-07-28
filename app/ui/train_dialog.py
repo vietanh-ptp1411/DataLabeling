@@ -22,8 +22,9 @@ class TrainDialog(QDialog):
         form.addRow("Task:", self.task_combo)
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
-        self.model_combo.addItems(["yolo11n.pt", "yolo11s.pt", "yolo11m.pt",
-                                   "yolo11l.pt"])
+        self.model_combo.addItems(["yolo26n.pt", "yolo26s.pt", "yolo26m.pt",
+                                   "yolo26l.pt", "yolo11n.pt", "yolo11s.pt",
+                                   "yolo11m.pt", "yolo11l.pt"])
         form.addRow("Model nền:", self.model_combo)
 
         data_row = QHBoxLayout()
