@@ -32,15 +32,10 @@ OutputDir=..\dist\installer
 OutputBaseFilename={#OutName}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-Compression=lzma2
+Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
-#if Edition == "GPU"
-; GPU edition exceeds GitHub's 2 GB asset limit as one file — span disks
-DiskSpanning=yes
-DiskSliceSize=1900000000
-#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

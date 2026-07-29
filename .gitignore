@@ -12,3 +12,4 @@ models/
 dist_gpu/
 build_gpu/
 .venv-cpu/
+.venv-gpu/
