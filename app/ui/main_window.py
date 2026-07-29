@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
 
         self.canvas = LabelCanvas()
         self.canvas.empty_hint = ("Chưa có ảnh\n"
-                                  "Bấm “📂 Mở thư mục” để bắt đầu gán nhãn")
+                                  "Bấm “Mở thư mục” để bắt đầu gán nhãn")
         self.image_list = QListWidget()
         self.image_list.currentRowChanged.connect(self._on_list_row)
         self._labeled_icon = theme.dot_icon("#3be8b0")
@@ -80,8 +80,10 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self):
         tb = QToolBar("Main")
         tb.setMovable(False)
+        tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(tb)
-        tb.addAction(QAction("📂 Mở thư mục", self, triggered=self.open_folder))
+        tb.addAction(QAction(theme.folder_icon(), "Mở thư mục", self,
+                             triggered=self.open_folder))
         tb.addAction(QAction("Lưu", self, triggered=self.save_current))
         tb.addAction(QAction("Lưu tất cả", self, triggered=self.save_all))
         tb.addSeparator()

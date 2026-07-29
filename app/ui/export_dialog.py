@@ -1,12 +1,13 @@
 import os
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QSize, QThread, Signal
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
                                QFormLayout, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QProgressBar, QPushButton,
                                QSpinBox, QVBoxLayout)
 
 from app.services.export_service import export_dataset
+from app.ui import theme
 
 
 class _ExportWorker(QThread):
@@ -46,7 +47,9 @@ class ExportDialog(QDialog):
         out_row.setSpacing(6)
         self.out_edit = QLineEdit()
         self.out_edit.setPlaceholderText("Chọn thư mục xuất dataset…")
-        browse = QPushButton("📂")
+        browse = QPushButton()
+        browse.setIcon(theme.folder_icon())
+        browse.setIconSize(QSize(18, 18))
         browse.setFixedWidth(40)
         browse.setAutoDefault(False)
         browse.clicked.connect(self._browse)

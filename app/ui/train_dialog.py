@@ -1,3 +1,4 @@
+from PySide6.QtCore import QSize
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                                QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QLabel, QLineEdit, QMessageBox,
@@ -5,6 +6,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                                QVBoxLayout)
 
 from app.training.trainer import ConvertWorker, TrainWorker
+from app.ui import theme
 
 
 class TrainDialog(QDialog):
@@ -32,7 +34,9 @@ class TrainDialog(QDialog):
         model_row = QHBoxLayout()
         model_row.setSpacing(6)
         model_row.addWidget(self.model_combo, 1)
-        browse_model = QPushButton("📂")
+        browse_model = QPushButton()
+        browse_model.setIcon(theme.folder_icon())
+        browse_model.setIconSize(QSize(18, 18))
         browse_model.setFixedWidth(40)
         browse_model.setAutoDefault(False)
         browse_model.setToolTip("Chọn file .pt đã train để train tiếp")
@@ -44,7 +48,9 @@ class TrainDialog(QDialog):
         data_row.setSpacing(6)
         self.data_edit = QLineEdit(main_window.last_export_yaml or "")
         self.data_edit.setPlaceholderText("Đường dẫn data.yaml (Export trước)…")
-        browse = QPushButton("📂")
+        browse = QPushButton()
+        browse.setIcon(theme.folder_icon())
+        browse.setIconSize(QSize(18, 18))
         browse.setFixedWidth(40)
         browse.setAutoDefault(False)
         browse.clicked.connect(self._browse_yaml)

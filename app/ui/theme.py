@@ -285,6 +285,28 @@ def _dark_title_bar(widget):
         pass
 
 
+def folder_icon(size=48):
+    """Crisp two-tone folder glyph — replaces the blurry 📂 emoji."""
+    from PySide6.QtCore import QRectF
+    pix = QPixmap(size, size)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing)
+    s = size / 24.0
+    p.setPen(Qt.NoPen)
+    # back tab
+    p.setBrush(QColor("#d9a53f"))
+    p.drawRoundedRect(QRectF(2 * s, 4.5 * s, 9 * s, 7 * s), 1.5 * s, 1.5 * s)
+    # body
+    p.setBrush(QColor("#f0c05a"))
+    p.drawRoundedRect(QRectF(2 * s, 7 * s, 20 * s, 12.5 * s), 2 * s, 2 * s)
+    # subtle front lip
+    p.setBrush(QColor("#f6cf7d"))
+    p.drawRoundedRect(QRectF(2 * s, 7 * s, 20 * s, 3.5 * s), 2 * s, 2 * s)
+    p.end()
+    return QIcon(pix)
+
+
 def dot_icon(color, size=12):
     """Small round color swatch used in lists/combos."""
     pix = QPixmap(size, size)
