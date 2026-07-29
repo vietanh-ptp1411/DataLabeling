@@ -3,7 +3,10 @@ import os
 from app.training.trainer import harvest_run, resolve_model_name
 
 
-def test_resolve_model_name_suffixes():
+def test_resolve_model_name_suffixes(tmp_path, monkeypatch):
+    # bare names resolve against cwd — run in an empty dir so downloaded
+    # weights lying around the repo root can't turn names into paths
+    monkeypatch.chdir(tmp_path)
     assert resolve_model_name("yolo11n.pt", "detect") == "yolo11n.pt"
     assert resolve_model_name("yolo11n.pt", "obb") == "yolo11n-obb.pt"
     assert resolve_model_name("yolo11s.pt", "segment") == "yolo11s-seg.pt"

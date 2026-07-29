@@ -10,7 +10,7 @@ from app.training.trainer import ConvertWorker, TrainWorker
 class TrainDialog(QDialog):
     def __init__(self, main_window):
         super().__init__(main_window)
-        self.setWindowTitle("Train YOLO")
+        self.setWindowTitle("DeepAI")
         self.resize(760, 560)
         self.worker = None
         self.converter = None
@@ -26,7 +26,19 @@ class TrainDialog(QDialog):
         self.model_combo.addItems(["yolo26n.pt", "yolo26s.pt", "yolo26m.pt",
                                    "yolo26l.pt", "yolo11n.pt", "yolo11s.pt",
                                    "yolo11m.pt", "yolo11l.pt"])
-        form.addRow("Model nền:", self.model_combo)
+        self.model_combo.setToolTip(
+            "Tên model nền (tự tải về), hoặc chọn file .pt đã train\n"
+            "trong models/ để TRAIN TIẾP từ trọng số đó")
+        model_row = QHBoxLayout()
+        model_row.setSpacing(6)
+        model_row.addWidget(self.model_combo, 1)
+        browse_model = QPushButton("📂")
+        browse_model.setFixedWidth(40)
+        browse_model.setAutoDefault(False)
+        browse_model.setToolTip("Chọn file .pt đã train để train tiếp")
+        browse_model.clicked.connect(self._browse_model)
+        model_row.addWidget(browse_model)
+        form.addRow("Model nền:", model_row)
 
         data_row = QHBoxLayout()
         data_row.setSpacing(6)
@@ -150,6 +162,14 @@ class TrainDialog(QDialog):
         self.log.setMaximumBlockCount(5000)
         self.log.setPlaceholderText("Log train sẽ hiện ở đây…")
         layout.addWidget(self.log, stretch=1)
+
+    def _browse_model(self):
+        from app.training.trainer import app_models_dir
+        p, _ = QFileDialog.getOpenFileName(
+            self, "Chọn model .pt để train tiếp", app_models_dir(),
+            "PyTorch model (*.pt)")
+        if p:
+            self.model_combo.setCurrentText(p)
 
     def _browse_yaml(self):
         p, _ = QFileDialog.getOpenFileName(self, "Chọn data.yaml", "",
