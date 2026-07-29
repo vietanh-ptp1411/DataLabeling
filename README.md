@@ -5,8 +5,19 @@ Bản Python của app C# WPF ImageLableing.
 
 ## Cài đặt
 
+Yêu cầu Python 3.10–3.12 (khuyên dùng 3.12), Windows 10/11 64-bit.
+
+    git clone https://github.com/vietanh-ptp1411/DataLabeling.git
+    cd DataLabeling
     pip install -r requirements.txt
     python main.py
+
+Máy có card NVIDIA, muốn train bằng GPU (tab Train → Device = 0):
+
+    pip install -r requirements-gpu.txt
+
+Không muốn cài Python? Tải bản đóng gói sẵn (CPU/GPU) tại
+[GitHub Releases](https://github.com/vietanh-ptp1411/DataLabeling/releases).
 
 ## Quy trình
 

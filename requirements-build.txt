@@ -1,0 +1,10 @@
+# TUY CHON - chi can khi muon dong goi thanh exe/installer:
+#
+#     pip install -r requirements-build.txt
+#     python -m PyInstaller DataLabeling.spec --noconfirm
+#     ISCC.exe installer\DataLabeling.iss        (can cai Inno Setup 6)
+#
+# Ban dong goi se dung dung ban torch dang cai trong moi truong:
+# torch CPU -> ban CPU, torch cu130 -> ban GPU (xem installer/DataLabeling.iss)
+
+pyinstaller>=6.10

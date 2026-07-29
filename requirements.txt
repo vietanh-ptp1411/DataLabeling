@@ -1,8 +1,17 @@
-PySide6>=6.6
-ultralytics>=8.3
-opencv-python>=4.9
-pyyaml>=6.0
-onnx>=1.17
-onnxslim>=0.1
-pillow>=10.0
-pytest>=8.0
+# Cai dat co ban (chay duoc ngay, train bang CPU):
+#     pip install -r requirements.txt
+#     python main.py
+#
+# May co card NVIDIA muon train bang GPU: cai them requirements-gpu.txt
+# Muon dong goi exe: cai them requirements-build.txt
+#
+# Yeu cau: Python 3.10 - 3.12 (khuyen dung 3.12), Windows 10/11 64-bit
+
+PySide6>=6.6            # giao dien Qt
+ultralytics>=8.4        # YOLO26/YOLO11 train + predict (tu keo torch ban CPU)
+opencv-python>=4.9      # doc video, tach frame
+pyyaml>=6.0             # data.yaml
+pillow>=10.0            # doc kich thuoc anh
+onnx>=1.17              # xuat model ONNX
+onnxslim>=0.1           # toi uu model ONNX khi xuat
+pytest>=8.0             # chay test: pytest -v

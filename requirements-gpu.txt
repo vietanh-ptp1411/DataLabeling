@@ -1,0 +1,12 @@
+# TUY CHON - chi cho may co card NVIDIA (GTX 16xx tro len, driver moi).
+# Thay torch ban CPU bang ban CUDA de train/predict bang GPU:
+#
+#     pip install -r requirements.txt
+#     pip install -r requirements-gpu.txt
+#
+# Sau do trong tab Train chon Device = 0.
+# Luu y: goi nay nang ~3GB.
+
+--index-url https://download.pytorch.org/whl/cu130
+torch==2.13.0+cu130
+torchvision==0.28.0+cu130
