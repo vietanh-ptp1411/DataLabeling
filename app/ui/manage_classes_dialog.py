@@ -2,6 +2,7 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QInputDialog, QListWidget,
                                QListWidgetItem, QMessageBox, QPushButton,
                                QVBoxLayout)
 
+from app.i18n import tr
 from app.models.label_class import LabelClass
 from app.ui import theme
 
@@ -11,16 +12,16 @@ class ManageClassesDialog(QDialog):
 
     def __init__(self, classes, store, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Quản lý Classes")
+        self.setWindowTitle(tr("Quản lý Classes"))
         self.classes = classes
         self.store = store
         layout = QVBoxLayout(self)
         self.listw = QListWidget()
         layout.addWidget(self.listw)
         row = QHBoxLayout()
-        add_btn = QPushButton("Thêm...")
-        del_btn = QPushButton("Xóa")
-        close_btn = QPushButton("Đóng")
+        add_btn = QPushButton(tr("Thêm..."))
+        del_btn = QPushButton(tr("Xóa"))
+        close_btn = QPushButton(tr("Đóng"))
         row.addWidget(add_btn)
         row.addWidget(del_btn)
         row.addStretch()
@@ -38,12 +39,15 @@ class ManageClassesDialog(QDialog):
             self.listw.addItem(item)
 
     def add_class(self):
-        name, ok = QInputDialog.getText(self, "Thêm class", "Tên class:")
+        name, ok = QInputDialog.getText(self, tr("Thêm class"),
+                                        tr("Tên class:"))
         name = name.strip()
         if not ok or not name:
             return
         if any(c.name == name for c in self.classes):
-            QMessageBox.warning(self, "Trùng tên", f"Class '{name}' đã tồn tại.")
+            QMessageBox.warning(self, tr("Trùng tên"),
+                                tr("Class '{name}' đã tồn tại.").format(
+                                    name=name))
             return
         self.classes.append(LabelClass(name))
         self.refresh()
@@ -57,10 +61,11 @@ class ManageClassesDialog(QDialog):
             sum(1 for b in ann.boxes if b.class_name == cls.name)
             + sum(1 for p in ann.polygons if p.class_name == cls.name)
             for ann in self.store.values())
-        msg = f"Xóa class '{cls.name}'?"
+        msg = tr("Xóa class '{name}'?").format(name=cls.name)
         if used:
-            msg += f"\nClass đang được dùng bởi {used} nhãn — xóa sẽ gỡ khỏi TẤT CẢ ảnh."
-        if QMessageBox.question(self, "Xác nhận", msg) != QMessageBox.Yes:
+            msg += tr("\nClass đang được dùng bởi {n} nhãn — xóa sẽ gỡ khỏi "
+                      "TẤT CẢ ảnh.").format(n=used)
+        if QMessageBox.question(self, tr("Xác nhận"), msg) != QMessageBox.Yes:
             return
         for ann in self.store.values():
             ann.boxes = [b for b in ann.boxes if b.class_name != cls.name]

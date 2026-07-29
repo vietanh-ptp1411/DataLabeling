@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (QComboBox, QDoubleSpinBox, QFileDialog,
                                QSpinBox, QVBoxLayout, QWidget)
 from PIL import Image
 
+from app.i18n import tr
 from app.models.label_class import stable_color
 from app.services.auto_label_service import AutoLabelService, save_yolo_txt
 from app.services.file_service import scan_images
@@ -66,7 +67,7 @@ class _VideoWorker(QThread):
             frames_dir = os.path.join(self.out_dir, "frames")
             labels_dir = os.path.join(self.out_dir, "labels")
             os.makedirs(labels_dir, exist_ok=True)
-            self.progress.emit("Đang tách frame...")
+            self.progress.emit(tr("Đang tách frame..."))
             frames = extract_frames(self.video_path, frames_dir, self.every_n)
             for i, fp in enumerate(frames):
                 boxes = self.service.predict(fp, self.conf, self.iou)
@@ -75,7 +76,8 @@ class _VideoWorker(QThread):
                 stem = os.path.splitext(os.path.basename(fp))[0]
                 save_yolo_txt(boxes, os.path.join(labels_dir, stem + ".txt"),
                               w, h, self.service.class_names)
-                self.progress.emit(f"Frame {i + 1}/{len(frames)}")
+                self.progress.emit(tr("Frame {a}/{b}").format(
+                    a=i + 1, b=len(frames)))
             self.done.emit(len(frames))
         except Exception as e:
             self.failed.emit(str(e))
@@ -101,14 +103,14 @@ class AutoLabelWindow(QMainWindow):
         root.setSpacing(10)
 
         # --- model row ---
-        head1 = QLabel("MODEL")
+        head1 = QLabel(tr("MODEL"))
         head1.setObjectName("sectionLabel")
         root.addWidget(head1)
         row = QHBoxLayout()
         row.setSpacing(8)
         self.model_edit = QLineEdit()
-        self.model_edit.setPlaceholderText("Đường dẫn model .pt / .onnx")
-        btn_model = QPushButton("Chọn model…")
+        self.model_edit.setPlaceholderText(tr("Đường dẫn model .pt / .onnx"))
+        btn_model = QPushButton(tr("Chọn model…"))
         btn_model.clicked.connect(self._pick_model)
         self.conf_spin = QDoubleSpinBox()
         self.conf_spin.setRange(0.05, 0.99)
@@ -131,22 +133,23 @@ class AutoLabelWindow(QMainWindow):
         root.addLayout(row)
 
         # --- mode + folders row ---
-        head2 = QLabel("DỮ LIỆU")
+        head2 = QLabel(tr("DỮ LIỆU"))
         head2.setObjectName("sectionLabel")
         root.addWidget(head2)
         row2 = QHBoxLayout()
         row2.setSpacing(8)
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Ảnh (thư mục)", "Video"])
+        self.mode_combo.addItems([tr("Ảnh (thư mục)"), tr("Video")])
         self.in_edit = QLineEdit()
-        self.in_edit.setPlaceholderText("Input (thư mục ảnh hoặc file video)")
-        btn_in = QPushButton("Input…")
+        self.in_edit.setPlaceholderText(
+            tr("Input (thư mục ảnh hoặc file video)"))
+        btn_in = QPushButton(tr("Input…"))
         btn_in.clicked.connect(self._pick_input)
         self.out_edit = QLineEdit()
-        self.out_edit.setPlaceholderText("Thư mục output")
-        btn_out = QPushButton("Output…")
+        self.out_edit.setPlaceholderText(tr("Thư mục output"))
+        btn_out = QPushButton(tr("Output…"))
         btn_out.clicked.connect(self._pick_output)
-        self.frame_label = QLabel("Mỗi N frame")
+        self.frame_label = QLabel(tr("Mỗi N frame"))
         self.frame_label.setProperty("dim", True)
         self.frame_spin = QSpinBox()
         self.frame_spin.setRange(1, 1000)
@@ -163,11 +166,11 @@ class AutoLabelWindow(QMainWindow):
         # --- actions row ---
         row3 = QHBoxLayout()
         row3.setSpacing(8)
-        self.run_btn = QPushButton("⚡  Chạy (lưu thẳng)")
+        self.run_btn = QPushButton("⚡  " + tr("Chạy (lưu thẳng)"))
         self.run_btn.setProperty("accent", True)
         self.run_btn.setMinimumHeight(32)
         self.run_btn.clicked.connect(self._run_batch)
-        self.preview_btn = QPushButton("Preview từng ảnh")
+        self.preview_btn = QPushButton(tr("Preview từng ảnh"))
         self.preview_btn.setMinimumHeight(32)
         self.preview_btn.clicked.connect(self._run_preview)
         row3.addWidget(self.run_btn)
@@ -185,17 +188,17 @@ class AutoLabelWindow(QMainWindow):
 
         # --- preview canvas + nav ---
         self.canvas = LabelCanvas()
-        self.canvas.empty_hint = ("Chưa có ảnh preview\n"
-                                  "Chọn model + input rồi bấm “Preview từng ảnh”")
+        self.canvas.empty_hint = tr(
+            "Chưa có ảnh preview\nChọn model + input rồi bấm “Preview từng ảnh”")
         root.addWidget(self.canvas, stretch=1)
         nav = QHBoxLayout()
         nav.setSpacing(8)
-        self.prev_btn = QPushButton("← Trước")
-        self.save_next_btn = QPushButton("Lưu && Tiếp →")
+        self.prev_btn = QPushButton(tr("← Trước"))
+        self.save_next_btn = QPushButton(tr("Lưu && Tiếp →"))
         self.save_next_btn.setProperty("accent", True)
-        self.skip_btn = QPushButton("Bỏ qua")
-        self.del_all_btn = QPushButton("Xóa hết box")
-        self.counter = QLabel("Đã lưu: 0 | Bỏ qua: 0")
+        self.skip_btn = QPushButton(tr("Bỏ qua"))
+        self.del_all_btn = QPushButton(tr("Xóa hết box"))
+        self.counter = QLabel(tr("Đã lưu: {a} | Bỏ qua: {b}").format(a=0, b=0))
         self.counter.setProperty("dim", True)
         self.prev_btn.clicked.connect(lambda: self._show_preview(self.preview_index - 1))
         self.save_next_btn.clicked.connect(self._save_and_next)
@@ -216,49 +219,50 @@ class AutoLabelWindow(QMainWindow):
         self.frame_spin.setVisible(is_video)
         self.preview_btn.setEnabled(not is_video)
         self.in_edit.setPlaceholderText(
-            "File video (.mp4 / .avi / .mkv / .mov)" if is_video
-            else "Thư mục ảnh input")
+            tr("File video (.mp4 / .avi / .mkv / .mov)") if is_video
+            else tr("Thư mục ảnh input"))
 
     # ---------- pickers ----------
 
     def _pick_model(self):
         from app.training.trainer import app_models_dir
         path, _ = QFileDialog.getOpenFileName(
-            self, "Chọn model", app_models_dir(), "Model (*.pt *.onnx)")
+            self, tr("Chọn model"), app_models_dir(), "Model (*.pt *.onnx)")
         if not path:
             return
         try:
             names = self.service.load_model(path)
         except Exception as e:
-            QMessageBox.critical(self, "Lỗi model", str(e))
+            QMessageBox.critical(self, tr("Lỗi model"), str(e))
             return
         self.model_edit.setText(path)
         self.canvas.class_colors = {n: stable_color(n) for n in names}
         self.statusBar().showMessage(
-            f"Model OK — {len(names)} classes: {', '.join(names[:8])}...", 5000)
+            tr("Model OK — {n} classes: {names}...").format(
+                n=len(names), names=", ".join(names[:8])), 5000)
 
     def _pick_input(self):
         if self.mode_combo.currentIndex() == 0:
-            p = QFileDialog.getExistingDirectory(self, "Thư mục ảnh")
+            p = QFileDialog.getExistingDirectory(self, tr("Thư mục ảnh"))
         else:
             p, _ = QFileDialog.getOpenFileName(
-                self, "Chọn video", "", "Video (*.mp4 *.avi *.mkv *.mov)")
+                self, tr("Chọn video"), "", "Video (*.mp4 *.avi *.mkv *.mov)")
         if p:
             self.in_edit.setText(p)
 
     def _pick_output(self):
-        p = QFileDialog.getExistingDirectory(self, "Thư mục output")
+        p = QFileDialog.getExistingDirectory(self, tr("Thư mục output"))
         if p:
             self.out_edit.setText(p)
 
     def _validated(self):
         if self.service.model is None:
-            QMessageBox.warning(self, "Thiếu", "Chọn model trước.")
+            QMessageBox.warning(self, tr("Thiếu"), tr("Chọn model trước."))
             return None
         inp = self.in_edit.text().strip()
         out = self.out_edit.text().strip()
         if not inp or not out:
-            QMessageBox.warning(self, "Thiếu", "Chọn input và output.")
+            QMessageBox.warning(self, tr("Thiếu"), tr("Chọn input và output."))
             return None
         return inp, out
 
@@ -276,9 +280,10 @@ class AutoLabelWindow(QMainWindow):
                                        self.iou_spin.value())
             self.worker.progress.connect(self.statusBar().showMessage)
             self.worker.done.connect(
-                lambda n: QMessageBox.information(self, "Xong", f"Đã xử lý {n} frame."))
+                lambda n: QMessageBox.information(
+                    self, tr("Xong"), tr("Đã xử lý {n} frame.").format(n=n)))
             self.worker.failed.connect(
-                lambda m: QMessageBox.critical(self, "Lỗi", m))
+                lambda m: QMessageBox.critical(self, tr("Lỗi"), m))
             self.worker.start()
             return
         images = scan_images(inp)
@@ -287,14 +292,15 @@ class AutoLabelWindow(QMainWindow):
                                    self.iou_spin.value(), out_dir=out)
         self._wire_progress(self.worker)
         self.worker.done.connect(
-            lambda n: QMessageBox.information(self, "Xong", f"Đã gán nhãn {n} ảnh."))
+            lambda n: QMessageBox.information(
+                self, tr("Xong"), tr("Đã gán nhãn {n} ảnh.").format(n=n)))
         self.worker.start()
 
     def _wire_progress(self, worker):
         worker.progress.connect(
             lambda d, t, p: (self.progress.setMaximum(t), self.progress.setValue(d),
                              self.statusBar().showMessage(os.path.basename(p))))
-        worker.failed.connect(lambda m: QMessageBox.critical(self, "Lỗi", m))
+        worker.failed.connect(lambda m: QMessageBox.critical(self, tr("Lỗi"), m))
 
     # ---------- preview mode ----------
 
@@ -304,8 +310,8 @@ class AutoLabelWindow(QMainWindow):
             return
         inp, out = v
         if self.mode_combo.currentIndex() == 1:
-            QMessageBox.information(self, "Chỉ ảnh",
-                                    "Preview mode chỉ dùng cho thư mục ảnh.")
+            QMessageBox.information(self, tr("Chỉ ảnh"),
+                                    tr("Preview mode chỉ dùng cho thư mục ảnh."))
             return
         self.preview = {}
         self.preview_paths = scan_images(inp)
@@ -365,11 +371,12 @@ class AutoLabelWindow(QMainWindow):
         self._advance()
 
     def _advance(self):
-        self.counter.setText(f"Đã lưu: {self.saved} | Bỏ qua: {self.skipped}")
+        self.counter.setText(tr("Đã lưu: {a} | Bỏ qua: {b}").format(
+            a=self.saved, b=self.skipped))
         if self.preview_index < len(self.preview_paths) - 1:
             self._show_preview(self.preview_index + 1)
         else:
-            QMessageBox.information(self, "Hết", "Đã duyệt hết ảnh.")
+            QMessageBox.information(self, tr("Hết"), tr("Đã duyệt hết ảnh."))
 
     def _delete_all(self):
         self.canvas.boxes = []

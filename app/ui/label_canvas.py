@@ -7,6 +7,7 @@ from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QPainter, QPen,
                            QPixmap, QPolygonF)
 from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
 
+from app.i18n import tr
 from app.models.bounding_box import BoundingBox
 from app.models.polygon import PolygonAnnotation
 from app.services import geometry as geo
@@ -61,7 +62,7 @@ class LabelCanvas(QGraphicsView):
         self.labeling_enabled = True
         self.draw_mode = DrawMode.BOX
         self.tool = Tool.POINTER
-        self.empty_hint = "Chưa có ảnh"
+        self.empty_hint = tr("Chưa có ảnh")
 
         self._drag = None                 # dict describing active interaction
         self._pending_poly = []
@@ -154,7 +155,7 @@ class LabelCanvas(QGraphicsView):
     def copy_selected(self):
         if self.selected_box:
             self._clipboard = self.selected_box.clone()
-            self.status_message.emit("Đã copy ROI")
+            self.status_message.emit(tr("Đã copy ROI"))
 
     def paste(self):
         if not self._clipboard or not self._img_w:
@@ -172,7 +173,7 @@ class LabelCanvas(QGraphicsView):
         self._clipboard = nb.clone()   # repeated paste keeps cascading
         self.annotation_changed.emit()
         self.selection_changed.emit()
-        self.status_message.emit("Đã paste ROI")
+        self.status_message.emit(tr("Đã paste ROI"))
         self.viewport().update()
 
     def delete_selected(self):
@@ -224,7 +225,7 @@ class LabelCanvas(QGraphicsView):
 
     def _polygon_click(self, sx, sy):
         if not self.current_class:
-            self.status_message.emit("Chọn class trước khi vẽ")
+            self.status_message.emit(tr("Chọn class trước khi vẽ"))
             return
         close_tol = CLOSE_POLY_PX / self._scale()
         if len(self._pending_poly) >= 3:

@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QLabel,
                                QSizePolicy, QSplitter, QToolBar, QVBoxLayout,
                                QWidget)
 
+from app import i18n
+from app.i18n import tr
 from app.models.image_annotation import ImageAnnotation
 from app.models.label_class import LabelClass
 from app.services import file_service as fs
@@ -31,8 +33,8 @@ class MainWindow(QMainWindow):
         self.last_export_yaml = None
 
         self.canvas = LabelCanvas()
-        self.canvas.empty_hint = ("Chưa có ảnh\n"
-                                  "Bấm “Mở thư mục” để bắt đầu gán nhãn")
+        self.canvas.empty_hint = tr(
+            "Chưa có ảnh\nBấm “Mở thư mục” để bắt đầu gán nhãn")
         self.image_list = QListWidget()
         self.image_list.currentRowChanged.connect(self._on_list_row)
         self._labeled_icon = theme.dot_icon("#3be8b0")
@@ -66,11 +68,11 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         head = QHBoxLayout()
-        title = QLabel("DANH SÁCH ẢNH")
-        title.setObjectName("panelHeader")
-        self.list_count = QLabel("0 ảnh")
+        self.panel_title = QLabel(tr("DANH SÁCH ẢNH"))
+        self.panel_title.setObjectName("panelHeader")
+        self.list_count = QLabel(tr("0 ảnh"))
         self.list_count.setObjectName("panelCount")
-        head.addWidget(title)
+        head.addWidget(self.panel_title)
         head.addStretch()
         head.addWidget(self.list_count)
         layout.addLayout(head)
@@ -82,30 +84,32 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(tb)
-        tb.addAction(QAction(theme.folder_icon(), "Mở thư mục", self,
+        self.toolbar = tb
+        tb.addAction(QAction(theme.folder_icon(), tr("Mở thư mục"), self,
                              triggered=self.open_folder))
-        tb.addAction(QAction("Lưu", self, triggered=self.save_current))
-        tb.addAction(QAction("Lưu tất cả", self, triggered=self.save_all))
+        tb.addAction(QAction(tr("Lưu"), self, triggered=self.save_current))
+        tb.addAction(QAction(tr("Lưu tất cả"), self, triggered=self.save_all))
         tb.addSeparator()
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Box", "Polygon"])
         self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
-        tb.addWidget(QLabel("Chế độ"))
+        tb.addWidget(QLabel(tr("Chế độ")))
         tb.addWidget(self.mode_combo)
         self.tool_combo = QComboBox()
-        self.tool_combo.addItems(["Pointer (Vẽ ROI)", "Touch (Kéo ảnh)"])
+        self.tool_combo.addItems([tr("Pointer (Vẽ ROI)"),
+                                  tr("Touch (Kéo ảnh)")])
         self.tool_combo.currentIndexChanged.connect(
             lambda i: setattr(self.canvas, "tool", Tool.PAN if i else Tool.POINTER))
-        tb.addWidget(QLabel("Công cụ"))
+        tb.addWidget(QLabel(tr("Công cụ")))
         tb.addWidget(self.tool_combo)
         self.class_combo = QComboBox()
         self.class_combo.currentTextChanged.connect(
             lambda name: setattr(self.canvas, "current_class", name))
         tb.addWidget(QLabel("Class"))
         tb.addWidget(self.class_combo)
-        tb.addAction(QAction("Quản lý…", self, triggered=self.manage_classes))
+        tb.addAction(QAction(tr("Quản lý…"), self, triggered=self.manage_classes))
         tb.addSeparator()
-        tb.addAction(QAction("Fit ảnh", self, triggered=self.canvas.fit_image))
+        tb.addAction(QAction(tr("Fit ảnh"), self, triggered=self.canvas.fit_image))
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         tb.addWidget(spacer)
@@ -118,11 +122,41 @@ class MainWindow(QMainWindow):
             if btn:
                 btn.setProperty("accent", True)
 
+    def _on_lang_changed(self, index):
+        code = "en" if index == 1 else "vi"
+        if code == i18n.get_lang():
+            return
+        i18n.set_lang(code)
+        # rebuild the toolbar with the new language, keeping selections
+        mode_i = self.mode_combo.currentIndex()
+        tool_i = self.tool_combo.currentIndex()
+        cls = self.class_combo.currentText()
+        self.removeToolBar(self.toolbar)
+        self.toolbar.deleteLater()
+        self._build_toolbar()
+        self.toolbar.show()
+        self.mode_combo.setCurrentIndex(mode_i)
+        self.tool_combo.setCurrentIndex(tool_i)
+        self._sync_class_combo()
+        if cls:
+            self.class_combo.setCurrentText(cls)
+        self.panel_title.setText(tr("DANH SÁCH ẢNH"))
+        self.canvas.empty_hint = tr(
+            "Chưa có ảnh\nBấm “Mở thư mục” để bắt đầu gán nhãn")
+        self.canvas.viewport().update()
+        self._update_counter()
+
     def _build_statusbar(self):
         self.coord_label = QLabel("x=–, y=–")
-        self.counter_label = QLabel("Ảnh 0 / 0")
+        self.counter_label = QLabel(tr("Ảnh {a} / {b}").format(a=0, b=0))
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems(["Tiếng Việt", "English"])
+        self.lang_combo.setCurrentIndex(1 if i18n.get_lang() == "en" else 0)
+        self.lang_combo.setToolTip(tr("Ngôn ngữ"))
+        self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
         self.statusBar().addPermanentWidget(self.coord_label)
         self.statusBar().addPermanentWidget(self.counter_label)
+        self.statusBar().addPermanentWidget(self.lang_combo)
 
     def _build_shortcuts(self):
         def sc(key, fn):
@@ -175,7 +209,7 @@ class MainWindow(QMainWindow):
     # ---------- folder / navigation ----------
 
     def open_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Chọn thư mục ảnh")
+        folder = QFileDialog.getExistingDirectory(self, tr("Chọn thư mục ảnh"))
         if not folder:
             return
         self.folder = folder
@@ -195,7 +229,8 @@ class MainWindow(QMainWindow):
             self.image_list.setCurrentRow(0)
         else:
             self.canvas.clear_image()
-            QMessageBox.information(self, "Trống", "Thư mục không có ảnh.")
+            QMessageBox.information(self, tr("Trống"),
+                                    tr("Thư mục không có ảnh."))
         self._update_counter()
 
     def _on_list_row(self, row):
@@ -224,10 +259,11 @@ class MainWindow(QMainWindow):
             self.show_image(self.index - 1)
 
     def _update_counter(self):
-        self.counter_label.setText(
-            f"Ảnh {self.index + 1} / {len(self.image_paths)}")
+        self.counter_label.setText(tr("Ảnh {a} / {b}").format(
+            a=self.index + 1, b=len(self.image_paths)))
         labeled = sum(1 for a in self.store.values() if a.boxes or a.polygons)
-        self.list_count.setText(f"{labeled} / {len(self.image_paths)} có nhãn")
+        self.list_count.setText(tr("{a} / {b} có nhãn").format(
+            a=labeled, b=len(self.image_paths)))
 
     # ---------- list marks (dot = image has labels) ----------
 
@@ -272,7 +308,7 @@ class MainWindow(QMainWindow):
             return
         self._flush_canvas_to_store()
         fs.save_annotation(self.folder, self.store[self.image_paths[self.index]])
-        self.statusBar().showMessage("Đã lưu nhãn ảnh hiện tại", 3000)
+        self.statusBar().showMessage(tr("Đã lưu nhãn ảnh hiện tại"), 3000)
 
     def save_all(self):
         if not self.folder:
@@ -283,7 +319,7 @@ class MainWindow(QMainWindow):
                 fs.save_annotation(self.folder, ann)
         fs.save_all_annotations(self.folder, self.current_annotations())
         fs.save_classes(self.folder, self.classes)
-        self.statusBar().showMessage("Đã lưu tất cả nhãn", 3000)
+        self.statusBar().showMessage(tr("Đã lưu tất cả nhãn"), 3000)
 
     # ---------- mode / dialogs (Export/AutoLabel/Train wired in later tasks) ----------
 

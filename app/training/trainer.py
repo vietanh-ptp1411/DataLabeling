@@ -6,6 +6,8 @@ from datetime import datetime
 
 from PySide6.QtCore import QThread, Signal
 
+from app.i18n import tr
+
 _SUFFIX = {"obb": "-obb", "segment": "-seg"}
 
 
@@ -79,11 +81,11 @@ class TrainWorker(QThread):
 
     def request_stop(self):
         self._stop = True
-        self.log_line.emit(">>> Sẽ dừng sau epoch hiện tại...")
+        self.log_line.emit(tr(">>> Sẽ dừng sau epoch hiện tại..."))
 
     def run(self):
         try:
-            self.log_line.emit(">>> Đang chuẩn bị model và dữ liệu…")
+            self.log_line.emit(tr(">>> Đang chuẩn bị model và dữ liệu…"))
             from ultralytics import YOLO
             model = YOLO(self.model_name)
 
@@ -115,17 +117,19 @@ class TrainWorker(QThread):
                       "pretrained": self.pretrained}
             if self.device != "auto":
                 kwargs["device"] = self.device
-            self.log_line.emit(f">>> Bắt đầu train ({self.epochs} epochs)…")
+            self.log_line.emit(
+                tr(">>> Bắt đầu train ({n} epochs)…").format(n=self.epochs))
             results = model.train(**kwargs)
             save_dir = str(getattr(results, "save_dir", work_dir))
             if self.onnx_after:
                 best = os.path.join(save_dir, "weights", "best.pt")
                 if os.path.isfile(best):
-                    self.log_line.emit(">>> Đang xuất model…")
+                    self.log_line.emit(tr(">>> Đang xuất model…"))
                     try:
                         export_onnx(best, self.imgsz)
                     except Exception as e:
-                        self.log_line.emit(f">>> Xuất ONNX lỗi: {e}")
+                        self.log_line.emit(
+                            tr(">>> Xuất ONNX lỗi: {e}").format(e=e))
             dataset = os.path.basename(
                 os.path.dirname(os.path.abspath(self.data_yaml)))
             stamp = datetime.now().strftime("%Y%m%d-%H%M")
@@ -133,13 +137,13 @@ class TrainWorker(QThread):
                                  f"{dataset}_{self.task}_{stamp}")
             shutil.rmtree(save_dir, ignore_errors=True)
             if not copied:
-                self.failed.emit("Train xong nhưng không thấy model kết quả.")
+                self.failed.emit(tr("Train xong nhưng không thấy model kết quả."))
                 return
             # user-facing output is the .onnx; best.pt stays quietly in
             # models/ so "train tiếp" from own weights keeps working
             shown = [p for p in copied if p.endswith(".onnx")] or copied
             for p in shown:
-                self.log_line.emit(f">>> Model: {p}")
+                self.log_line.emit(tr(">>> Model: {p}").format(p=p))
             self.finished_ok.emit("\n".join(shown))
         except Exception as e:
             self.failed.emit(str(e))
