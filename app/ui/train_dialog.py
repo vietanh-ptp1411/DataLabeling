@@ -5,8 +5,10 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
                                QPlainTextEdit, QPushButton, QSpinBox,
                                QVBoxLayout)
 
-from app.training.trainer import ConvertWorker, TrainWorker
+from app.training.trainer import TrainWorker
 from app.ui import theme
+
+DEFAULT_BASE_MODEL = "yolo26x.pt"   # used when the model field is left empty
 
 
 class TrainDialog(QDialog):
@@ -15,7 +17,6 @@ class TrainDialog(QDialog):
         self.setWindowTitle("DeepAI")
         self.resize(760, 560)
         self.worker = None
-        self.converter = None
 
         form = QFormLayout()
         form.setHorizontalSpacing(16)
@@ -26,11 +27,14 @@ class TrainDialog(QDialog):
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
         self.model_combo.addItems(["yolo26n.pt", "yolo26s.pt", "yolo26m.pt",
-                                   "yolo26l.pt", "yolo11n.pt", "yolo11s.pt",
-                                   "yolo11m.pt", "yolo11l.pt"])
+                                   "yolo26l.pt", "yolo26x.pt", "yolo11n.pt",
+                                   "yolo11s.pt", "yolo11m.pt", "yolo11l.pt"])
+        self.model_combo.setCurrentIndex(-1)
+        self.model_combo.lineEdit().setPlaceholderText(
+            "Để trống = mặc định (chất lượng cao nhất)")
         self.model_combo.setToolTip(
-            "Tên model nền (tự tải về), hoặc chọn file .pt đã train\n"
-            "trong models/ để TRAIN TIẾP từ trọng số đó")
+            "Để trống để dùng model nền mặc định, hoặc chọn file .pt\n"
+            "đã train trong models/ để TRAIN TIẾP từ trọng số đó")
         model_row = QHBoxLayout()
         model_row.setSpacing(6)
         model_row.addWidget(self.model_combo, 1)
@@ -117,15 +121,10 @@ class TrainDialog(QDialog):
         self.pretrained_check.setChecked(True)
         self.pretrained_check.setToolTip(
             "Bắt đầu từ trọng số đã train sẵn (khuyên dùng) thay vì từ đầu")
-        self.onnx_check = QCheckBox("Xuất ONNX")
-        self.onnx_check.setChecked(True)
-        self.onnx_check.setToolTip(
-            "Train xong tự tạo thêm bản .onnx cạnh file .pt")
         checks = QVBoxLayout()
         checks.setSpacing(6)
         checks.addStretch()
         checks.addWidget(self.pretrained_check)
-        checks.addWidget(self.onnx_check)
         grid.addLayout(checks, 2, 3, 2, 1)
 
         layout = QVBoxLayout(self)
@@ -150,15 +149,11 @@ class TrainDialog(QDialog):
         self.stop_btn = QPushButton("Dừng")
         self.stop_btn.setEnabled(False)
         self.stop_btn.setAutoDefault(False)
-        self.convert_btn = QPushButton("Convert .pt → ONNX…")
-        self.convert_btn.setAutoDefault(False)
         self.start_btn.clicked.connect(self._start)
         self.stop_btn.clicked.connect(self._stop)
-        self.convert_btn.clicked.connect(self._convert_pt)
         btn_row.addWidget(self.start_btn)
         btn_row.addWidget(self.stop_btn)
         btn_row.addStretch()
-        btn_row.addWidget(self.convert_btn)
         layout.addLayout(btn_row)
         log_head = QLabel("LOG TRAIN")
         log_head.setObjectName("sectionLabel")
@@ -183,31 +178,6 @@ class TrainDialog(QDialog):
         if p:
             self.data_edit.setText(p)
 
-    # ---------- .pt -> ONNX ----------
-
-    def _convert_pt(self):
-        p, _ = QFileDialog.getOpenFileName(self, "Chọn model .pt", "",
-                                           "PyTorch model (*.pt)")
-        if not p:
-            return
-        self.convert_btn.setEnabled(False)
-        self.log.appendPlainText(f">>> Đang convert sang ONNX: {p}")
-        self.converter = ConvertWorker(p, self.imgsz_spin.value())
-        self.converter.done.connect(self._convert_done)
-        self.converter.failed.connect(self._convert_failed)
-        self.converter.start()
-
-    def _convert_done(self, onnx_path):
-        self.convert_btn.setEnabled(True)
-        self.log.appendPlainText(f">>> ONNX: {onnx_path}")
-        QMessageBox.information(self, "Convert xong",
-                                f"Đã tạo:\n{onnx_path}")
-
-    def _convert_failed(self, msg):
-        self.convert_btn.setEnabled(True)
-        self.log.appendPlainText(f">>> Convert lỗi: {msg}")
-        QMessageBox.critical(self, "Lỗi convert", msg)
-
     def _start(self):
         data = self.data_edit.text().strip()
         if not data:
@@ -216,12 +186,12 @@ class TrainDialog(QDialog):
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
         self.log.clear()
+        base_model = (self.model_combo.currentText().strip()
+                      or DEFAULT_BASE_MODEL)
         self.worker = TrainWorker(
-            self.task_combo.currentText(),
-            self.model_combo.currentText().strip(),
+            self.task_combo.currentText(), base_model,
             data, self.epochs_spin.value(), self.imgsz_spin.value(),
             self.batch_spin.value(), self.device_combo.currentText(),
-            onnx_after=self.onnx_check.isChecked(),
             patience=self.patience_spin.value(),
             optimizer=self.optimizer_combo.currentText(),
             lr0=self.lr0_spin.value(),
@@ -251,11 +221,6 @@ class TrainDialog(QDialog):
         if self.worker and self.worker.isRunning():
             QMessageBox.warning(self, "Đang train",
                                 "Bấm Dừng và đợi train kết thúc trước khi đóng.")
-            event.ignore()
-            return
-        if self.converter and self.converter.isRunning():
-            QMessageBox.warning(self, "Đang convert",
-                                "Đợi convert ONNX xong trước khi đóng.")
             event.ignore()
             return
         super().closeEvent(event)

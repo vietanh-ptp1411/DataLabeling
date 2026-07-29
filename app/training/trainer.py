@@ -1,4 +1,3 @@
-import logging
 import os
 import shutil
 import sys
@@ -49,36 +48,10 @@ def harvest_run(save_dir, models_dir, base_name):
     return copied
 
 
-class _SignalLogHandler(logging.Handler):
-    def __init__(self, emit_fn):
-        super().__init__()
-        self.emit_fn = emit_fn
-
-    def emit(self, record):
-        self.emit_fn(self.format(record))
-
-
 def export_onnx(pt_path, imgsz=640):
     """Convert a trained .pt checkpoint to ONNX; returns the .onnx path."""
     from ultralytics import YOLO
     return str(YOLO(pt_path).export(format="onnx", imgsz=imgsz))
-
-
-class ConvertWorker(QThread):
-    """Background .pt -> .onnx conversion."""
-    done = Signal(str)
-    failed = Signal(str)
-
-    def __init__(self, pt_path, imgsz=640):
-        super().__init__()
-        self.pt_path = pt_path
-        self.imgsz = imgsz
-
-    def run(self):
-        try:
-            self.done.emit(export_onnx(self.pt_path, self.imgsz))
-        except Exception as e:
-            self.failed.emit(str(e))
 
 
 class TrainWorker(QThread):
@@ -87,7 +60,7 @@ class TrainWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, task, model, data_yaml, epochs, imgsz, batch, device,
-                 onnx_after=False, patience=100, optimizer="auto", lr0=0.01,
+                 onnx_after=True, patience=100, optimizer="auto", lr0=0.01,
                  pretrained=True):
         super().__init__()
         self.task = task
@@ -109,20 +82,29 @@ class TrainWorker(QThread):
         self.log_line.emit(">>> Sẽ dừng sau epoch hiện tại...")
 
     def run(self):
-        handler = _SignalLogHandler(self.log_line.emit)
-        logger = logging.getLogger("ultralytics")
-        logger.addHandler(handler)
         try:
+            self.log_line.emit(">>> Đang chuẩn bị model và dữ liệu…")
             from ultralytics import YOLO
             model = YOLO(self.model_name)
 
             def on_epoch_end(trainer):
-                self.log_line.emit(
-                    f">>> Epoch {trainer.epoch + 1}/{trainer.epochs} xong")
                 if self._stop:
                     trainer.stop = True
 
+            def on_fit_epoch_end(trainer):
+                # one clean aligned line per epoch — nothing else leaks
+                if trainer.epoch + 1 > trainer.epochs:
+                    return   # extra final-validation pass, already reported
+                m = trainer.metrics or {}
+                self.log_line.emit(
+                    f"Epoch {trainer.epoch + 1:>4}/{trainer.epochs}"
+                    f"   P {m.get('metrics/precision(B)', 0):7.3f}"
+                    f"   R {m.get('metrics/recall(B)', 0):7.3f}"
+                    f"   mAP50 {m.get('metrics/mAP50(B)', 0):7.3f}"
+                    f"   mAP50-95 {m.get('metrics/mAP50-95(B)', 0):7.3f}")
+
             model.add_callback("on_train_epoch_end", on_epoch_end)
+            model.add_callback("on_fit_epoch_end", on_fit_epoch_end)
             # train inside temp; only .pt/.onnx are kept, in <app>/models
             work_dir = os.path.join(tempfile.gettempdir(),
                                     "DataLabeling", "runs")
@@ -133,12 +115,13 @@ class TrainWorker(QThread):
                       "pretrained": self.pretrained}
             if self.device != "auto":
                 kwargs["device"] = self.device
+            self.log_line.emit(f">>> Bắt đầu train ({self.epochs} epochs)…")
             results = model.train(**kwargs)
             save_dir = str(getattr(results, "save_dir", work_dir))
             if self.onnx_after:
                 best = os.path.join(save_dir, "weights", "best.pt")
                 if os.path.isfile(best):
-                    self.log_line.emit(">>> Đang xuất ONNX...")
+                    self.log_line.emit(">>> Đang xuất model…")
                     try:
                         export_onnx(best, self.imgsz)
                     except Exception as e:
@@ -150,12 +133,13 @@ class TrainWorker(QThread):
                                  f"{dataset}_{self.task}_{stamp}")
             shutil.rmtree(save_dir, ignore_errors=True)
             if not copied:
-                self.failed.emit("Train xong nhưng không thấy best.pt.")
+                self.failed.emit("Train xong nhưng không thấy model kết quả.")
                 return
-            for p in copied:
+            # user-facing output is the .onnx; best.pt stays quietly in
+            # models/ so "train tiếp" from own weights keeps working
+            shown = [p for p in copied if p.endswith(".onnx")] or copied
+            for p in shown:
                 self.log_line.emit(f">>> Model: {p}")
-            self.finished_ok.emit("\n".join(copied))
+            self.finished_ok.emit("\n".join(shown))
         except Exception as e:
             self.failed.emit(str(e))
-        finally:
-            logger.removeHandler(handler)
