@@ -1,21 +1,21 @@
 ; Inno Setup script — build after PyInstaller:
 ;   CPU: ISCC.exe installer\DataLabeling.iss
-;   GPU: ISCC.exe /DSrcDir=..\dist_gpu\DataLabeling /DEdition=GPU installer\DataLabeling.iss
-#define MyAppName "DataLabeling"
-#define MyAppVersion "1.2.0"
+;   GPU: ISCC.exe /DSrcDir=..\dist_gpu\TrainingDeepAI /DEdition=GPU installer\DataLabeling.iss
+#define MyAppName "TrainingDeepAI"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "MVA"
 #define MyAppURL "https://github.com/vietanh-ptp1411/DataLabeling"
-#define MyAppExeName "DataLabeling.exe"
+#define MyAppExeName "TrainingDeepAI.exe"
 #ifndef SrcDir
-#define SrcDir "..\dist\DataLabeling"
+#define SrcDir "..\dist\TrainingDeepAI"
 #endif
 #ifndef Edition
 #define Edition "CPU"
 #endif
 #if Edition == "GPU"
-#define OutName "DataLabeling-GPU-Setup-" + MyAppVersion
+#define OutName "TrainingDeepAI-GPU-Setup-" + MyAppVersion
 #else
-#define OutName "DataLabeling-Setup-" + MyAppVersion
+#define OutName "TrainingDeepAI-Setup-" + MyAppVersion
 #endif
 
 [Setup]

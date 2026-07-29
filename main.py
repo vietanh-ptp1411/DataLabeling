@@ -28,7 +28,7 @@ def main():
         # own AppUserModelID so the taskbar shows our icon, not python's
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "MVA.DataLabeling")
+            "MVA.TrainingDeepAI")
 
     qapp = QApplication(sys.argv)
     apply_theme(qapp)

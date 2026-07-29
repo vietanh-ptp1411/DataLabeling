@@ -22,7 +22,7 @@ DEFAULT_CLASSES = ["Car", "Person", "Motorcycle"]
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DataLabeling")
+        self.setWindowTitle("TrainingDeepAI")
         self.resize(1400, 900)
 
         self.folder = None

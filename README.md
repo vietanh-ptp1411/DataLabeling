@@ -1,7 +1,7 @@
-# DataLabeling Python
+# TrainingDeepAI
 
-Công cụ gán nhãn ảnh (box, box xoay, polygon) kèm train YOLO tích hợp.
-Bản Python của app C# WPF ImageLableing.
+Công cụ gán nhãn ảnh (box, box xoay, polygon) kèm train AI tích hợp,
+giao diện Việt/Anh. Bản Python của app C# WPF ImageLableing.
 
 ## Cài đặt
 
@@ -62,6 +62,6 @@ Không muốn cài Python? Tải bản đóng gói sẵn (CPU/GPU) tại
     python -m PyInstaller DataLabeling.spec --noconfirm
     ISCC.exe installer\DataLabeling.iss
 
-Kết quả: `dist\installer\DataLabeling-Setup-<version>.exe` — bộ cài per-user
+Kết quả: `dist\installer\TrainingDeepAI-Setup-<version>.exe` — bộ cài per-user
 (không cần admin), icon và shortcut đầy đủ. Bản phát hành tải tại
 [GitHub Releases](https://github.com/vietanh-ptp1411/DataLabeling/releases).

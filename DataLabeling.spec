@@ -29,7 +29,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="DataLabeling",
+    name="TrainingDeepAI",
     icon="assets/icon.ico",
     console=False,
     upx=False,
@@ -38,6 +38,6 @@ coll = COLLECT(
     exe,
     a.binaries,
     a.datas,
-    name="DataLabeling",
+    name="TrainingDeepAI",
     upx=False,
 )
